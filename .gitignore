@@ -55,7 +55,7 @@ mlartifacts/
 
 # Data & Models
 data/
-models/
+
 *.pth
 *.onnx
 *.pb

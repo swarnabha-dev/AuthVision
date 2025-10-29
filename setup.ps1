@@ -32,7 +32,8 @@ Write-Host "[5/5] Verifying installation..." -ForegroundColor Cyan
 
 Write-Host ""
 Write-Host "Setup complete! Next steps:" -ForegroundColor Green
-Write-Host "  1. Copy .env.example to .env and configure" -ForegroundColor White
-Write-Host "  2. Run tests: .\venv\Scripts\python.exe -m pytest tests\unit\test_routes.py -v" -ForegroundColor White
-Write-Host "  3. Start server: .\venv\Scripts\hypercorn.exe src.app.main:app --bind 0.0.0.0:8000" -ForegroundColor White
+Write-Host "  1. Copy .env.example to .env and configure (optional)" -ForegroundColor White
+Write-Host "  2. Run tests: pytest tests\unit\test_routes.py -v" -ForegroundColor White
+Write-Host "  3. Start server: .\start-dev.ps1" -ForegroundColor White
+Write-Host "  4. Visit: http://localhost:8000/docs" -ForegroundColor White
 Write-Host ""

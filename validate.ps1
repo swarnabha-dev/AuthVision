@@ -47,7 +47,8 @@ if (Test-Path ".env") {
 # Check 4: Import test
 Write-Host "[4/6] Testing imports..." -ForegroundColor Yellow
 try {
-    $output = & .\venv\Scripts\python.exe -c "from app.main import app; print('OK')" 2>&1
+    # Test imports by running the server launcher (it will fail fast if imports are broken)
+    $output = & .\venv\Scripts\python.exe -c "import sys; sys.path.insert(0, 'src'); from app.main import app; print('OK')" 2>&1
     if ($output -match "OK") {
         Write-Host "  ✓ Application imports successfully" -ForegroundColor Green
     } else {
@@ -86,9 +87,10 @@ try {
 Write-Host "[6/6] Testing server startup..." -ForegroundColor Yellow
 try {
     $job = Start-Job -ScriptBlock {
-        param($pythonPath)
-        & $pythonPath -c "from app.main import app; print('SERVER_OK')"
-    } -ArgumentList (Resolve-Path ".\venv\Scripts\python.exe")
+        param($pythonPath, $projectRoot)
+        Set-Location $projectRoot
+        & $pythonPath -c "import sys; sys.path.insert(0, 'src'); from app.main import app; print('SERVER_OK')"
+    } -ArgumentList (Resolve-Path ".\venv\Scripts\python.exe"), $PSScriptRoot
     
     Wait-Job $job -Timeout 5 | Out-Null
     $output = Receive-Job $job
@@ -115,7 +117,7 @@ if ($errors -eq 0) {
     Write-Host "✓ All checks passed! Module 1 is ready." -ForegroundColor Green
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Cyan
-    Write-Host "  1. Start server: .\venv\Scripts\hypercorn.exe src.app.main:app --bind 0.0.0.0:8000" -ForegroundColor White
+    Write-Host "  1. Start server: .\start-dev.ps1" -ForegroundColor White
     Write-Host "  2. Visit: http://localhost:8000/docs" -ForegroundColor White
     Write-Host "  3. Test endpoints via interactive docs" -ForegroundColor White
     Write-Host "  4. Confirm with agent: 'Module 1 validated, proceed to Module 2'" -ForegroundColor White
