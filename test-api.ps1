@@ -14,11 +14,11 @@ $errors = 0
 Write-Host "[0] Checking if server is running..." -ForegroundColor Yellow
 try {
     $health = Invoke-RestMethod -Uri "$baseUrl/api/v1/health" -Method Get -ErrorAction Stop
-    Write-Host "  ✓ Server is running" -ForegroundColor Green
+    Write-Host "  [OK] Server is running" -ForegroundColor Green
     Write-Host "    Status: $($health.status)" -ForegroundColor Gray
     Write-Host "    Uptime: $([math]::Round($health.uptime_seconds, 2))s" -ForegroundColor Gray
 } catch {
-    Write-Host "  ✗ Server is not running" -ForegroundColor Red
+    Write-Host "  [ERROR] Server is not running" -ForegroundColor Red
     Write-Host "    Start with: .\start-server.ps1" -ForegroundColor Yellow
     Write-Host "    Or for development: .\start-dev.ps1" -ForegroundColor Yellow
     exit 1
@@ -30,9 +30,9 @@ Write-Host ""
 Write-Host "[1] Testing GET /api/v1/health" -ForegroundColor Yellow
 try {
     $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/health" -Method Get
-    Write-Host "  ✓ Response: $($response.status)" -ForegroundColor Green
+    Write-Host "  [OK] Response: $($response.status)" -ForegroundColor Green
 } catch {
-    Write-Host "  ✗ Failed" -ForegroundColor Red
+    Write-Host "  [FAIL] Failed" -ForegroundColor Red
     $errors++
 }
 
@@ -46,10 +46,10 @@ try {
     } | ConvertTo-Json
     
     $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/devices/register" -Method Post -Body $body -ContentType "application/json"
-    Write-Host "  ✓ Device registered: $($response.device_id)" -ForegroundColor Green
+    Write-Host "  [OK] Device registered: $($response.device_id)" -ForegroundColor Green
     Write-Host "    Status: $($response.status)" -ForegroundColor Gray
 } catch {
-    Write-Host "  ✗ Failed" -ForegroundColor Red
+    Write-Host "  [FAIL] Failed" -ForegroundColor Red
     $errors++
 }
 
@@ -57,12 +57,12 @@ try {
 Write-Host "[3] Testing GET /api/v1/models" -ForegroundColor Yellow
 try {
     $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/models" -Method Get
-    Write-Host "  ✓ Found $($response.models.Count) models" -ForegroundColor Green
+    Write-Host "  [OK] Found $($response.models.Count) models" -ForegroundColor Green
     foreach ($model in $response.models) {
         Write-Host "    - $($model.name) v$($model.version) [$($model.stage)]" -ForegroundColor Gray
     }
 } catch {
-    Write-Host "  ✗ Failed" -ForegroundColor Red
+    Write-Host "  [FAIL] Failed" -ForegroundColor Red
     $errors++
 }
 
@@ -75,10 +75,10 @@ try {
     } | ConvertTo-Json
     
     $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/models/activate" -Method Post -Body $body -ContentType "application/json"
-    Write-Host "  ✓ Model activation: $($response.success)" -ForegroundColor Green
+    Write-Host "  [OK] Model activation: $($response.success)" -ForegroundColor Green
     Write-Host "    Message: $($response.message)" -ForegroundColor Gray
 } catch {
-    Write-Host "  ✗ Failed" -ForegroundColor Red
+    Write-Host "  [FAIL] Failed" -ForegroundColor Red
     $errors++
 }
 
@@ -92,10 +92,10 @@ try {
     } | ConvertTo-Json
     
     $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/stream/start" -Method Post -Body $body -ContentType "application/json"
-    Write-Host "  ✓ Stream started: $($response.started)" -ForegroundColor Green
+    Write-Host "  [OK] Stream started: $($response.started)" -ForegroundColor Green
     Write-Host "    Message: $($response.message)" -ForegroundColor Gray
 } catch {
-    Write-Host "  ✗ Failed" -ForegroundColor Red
+    Write-Host "  [FAIL] Failed" -ForegroundColor Red
     $errors++
 }
 
@@ -107,9 +107,9 @@ try {
     } | ConvertTo-Json
     
     $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/stream/stop" -Method Post -Body $body -ContentType "application/json"
-    Write-Host "  ✓ Stream stopped: $($response.stopped)" -ForegroundColor Green
+    Write-Host "  [OK] Stream stopped: $($response.stopped)" -ForegroundColor Green
 } catch {
-    Write-Host "  ✗ Failed" -ForegroundColor Red
+    Write-Host "  [FAIL] Failed" -ForegroundColor Red
     $errors++
 }
 
@@ -122,13 +122,13 @@ try {
     }
     
     $response = Invoke-RestMethod -Uri "$baseUrl/api/v1/attendance" -Method Get -Body $params
-    Write-Host "  ✓ Found $($response.records.Count) attendance record(s)" -ForegroundColor Green
+    Write-Host "  [OK] Found $($response.records.Count) attendance record(s)" -ForegroundColor Green
     if ($response.records.Count -gt 0) {
         Write-Host "    Student: $($response.records[0].student_id)" -ForegroundColor Gray
         Write-Host "    Confidence: $($response.records[0].confidence)" -ForegroundColor Gray
     }
 } catch {
-    Write-Host "  ✗ Failed" -ForegroundColor Red
+    Write-Host "  [FAIL] Failed" -ForegroundColor Red
     $errors++
 }
 
@@ -144,14 +144,14 @@ Write-Host "================================" -ForegroundColor Cyan
 Write-Host ""
 
 if ($errors -eq 0) {
-    Write-Host "✓ All API tests passed!" -ForegroundColor Green
+    Write-Host "[PASS] All API tests passed!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Additional testing:" -ForegroundColor Cyan
     Write-Host "  - Visit http://localhost:8000/docs for interactive testing" -ForegroundColor White
     Write-Host "  - Test enrollment endpoint with image upload" -ForegroundColor White
     Write-Host "  - Review API responses for correct typing" -ForegroundColor White
 } else {
-    Write-Host "✗ $errors test(s) failed" -ForegroundColor Red
+    Write-Host "[FAIL] $errors test(s) failed" -ForegroundColor Red
 }
 
 Write-Host ""
