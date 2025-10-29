@@ -1,0 +1,26 @@
+name: smart-attendance
+
+entry_points:
+  main:
+    parameters:
+      config_path: {type: string, default: "config.yaml"}
+      dataset_path: {type: string}
+      model_name: {type: string, default: "pafu"}
+      epochs: {type: int, default: 100}
+      batch_size: {type: int, default: 32}
+      learning_rate: {type: float, default: 0.001}
+    command: "python src/mlflow/train/pafu_finetune.py --config {config_path} --dataset {dataset_path} --model {model_name} --epochs {epochs} --batch-size {batch_size} --lr {learning_rate}"
+
+  export_onnx:
+    parameters:
+      model_uri: {type: string}
+      output_path: {type: string}
+      opset: {type: int, default: 13}
+    command: "python scripts/export_onnx.sh {model_uri} {output_path} {opset}"
+
+  quantize:
+    parameters:
+      model_path: {type: string}
+      output_path: {type: string}
+      mode: {type: string, default: "int8"}
+    command: "python scripts/quantize_onnx.sh {model_path} {output_path} {mode}"
