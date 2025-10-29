@@ -19,7 +19,8 @@ try {
     Write-Host "    Uptime: $([math]::Round($health.uptime_seconds, 2))s" -ForegroundColor Gray
 } catch {
     Write-Host "  ✗ Server is not running" -ForegroundColor Red
-    Write-Host "    Start with: .\venv\Scripts\hypercorn.exe src.app.main:app --bind 0.0.0.0:8000" -ForegroundColor Yellow
+    Write-Host "    Start with: .\start-server.ps1" -ForegroundColor Yellow
+    Write-Host "    Or for development: .\start-dev.ps1" -ForegroundColor Yellow
     exit 1
 }
 
