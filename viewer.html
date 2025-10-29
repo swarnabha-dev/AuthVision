@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live RTSP Stream Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+        .controls {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #333;
+            color: #fff;
+            font-size: 14px;
+        }
+        button {
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .btn-danger {
+            background: #f44336;
+        }
+        .btn-danger:hover {
+            background: #da190b;
+        }
+        .btn-secondary {
+            background: #2196F3;
+        }
+        .btn-secondary:hover {
+            background: #0b7dda;
+        }
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(640px, 1fr));
+            gap: 20px;
+        }
+        .video-container {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .video-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .camera-id {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            background: #4CAF50;
+        }
+        .status.error {
+            background: #f44336;
+        }
+        img {
+            width: 100%;
+            border-radius: 4px;
+            background: #000;
+        }
+        .stats {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #aaa;
+        }
+        .discovered-cameras {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .camera-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #333;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .camera-url {
+            font-family: monospace;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Live RTSP Stream Viewer</h1>
+        
+        <div class="controls">
+            <h2>🚀 Quick Start - Full Automation</h2>
+            <button onclick="autoStartAll()" class="btn-secondary" style="font-size: 16px; padding: 15px;">
+                ⚡ One-Click Auto-Discover & Start All Cameras
+            </button>
+            <div id="auto-start-status"></div>
+        </div>
+
+        <div class="controls">
+            <h2>Camera Discovery</h2>
+            <button onclick="discoverCameras()" class="btn-secondary">🔍 Auto-Discover Cameras</button>
+            <div id="discovered-list"></div>
+        </div>
+
+        <div class="controls">
+            <h2>Start New Stream</h2>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="auto-discover-mode" onchange="toggleDiscoveryMode()"> 
+                    Auto-discover camera URL (don't require manual URL)
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="camera-id">Camera ID:</label>
+                <input type="text" id="camera-id" placeholder="e.g., cam-001" value="cam-001">
+            </div>
+            <div class="form-group" id="url-group">
+                <label for="rtsp-url">RTSP URL:</label>
+                <input type="text" id="rtsp-url" placeholder="rtsp://192.168.1.100:554/stream" value="rtsp://192.168.1.64:8080/h264_ulaw.sdp">
+            </div>
+            <div class="form-group" id="network-group" style="display: none;">
+                <label for="discovery-network">Discovery Network:</label>
+                <input type="text" id="discovery-network" placeholder="192.168.1.0/24" value="192.168.1.0/24">
+            </div>
+            <div class="form-group">
+                <label for="priority">Priority:</label>
+                <select id="priority">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                </select>
+            </div>
+            <button onclick="startStream()">▶️ Start Stream</button>
+        </div>
+
+        <div class="video-grid" id="video-grid"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v1';
+        const activeStreams = new Set();
+
+        function toggleDiscoveryMode() {
+            const autoDiscover = document.getElementById('auto-discover-mode').checked;
+            const urlGroup = document.getElementById('url-group');
+            const networkGroup = document.getElementById('network-group');
+            
+            if (autoDiscover) {
+                urlGroup.style.display = 'none';
+                networkGroup.style.display = 'block';
+            } else {
+                urlGroup.style.display = 'block';
+                networkGroup.style.display = 'none';
+            }
+        }
+
+        async function autoStartAll() {
+            const btn = event.target;
+            const statusDiv = document.getElementById('auto-start-status');
+            
+            btn.disabled = true;
+            btn.textContent = '⚡ Discovering and starting cameras...';
+            statusDiv.innerHTML = '<p style="color: #4CAF50; margin-top: 10px;">🔍 Scanning network...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/stream/discover-auto`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        network: '192.168.1.0/24',
+                        timeout: 2.0,
+                        max_cameras: 10,
+                        auto_start: true
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.auto_started && data.auto_started.length > 0) {
+                    statusDiv.innerHTML = `
+                        <div style="background: #2a2a2a; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                            <p style="color: #4CAF50; font-weight: bold;">✅ Successfully started ${data.auto_started.length} camera(s)!</p>
+                            <div style="font-size: 12px; color: #aaa;">
+                                ${data.auto_started.map(id => `<div>• ${id}</div>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add video streams to grid
+                    data.auto_started.forEach(cameraId => {
+                        activeStreams.add(cameraId);
+                        addVideoStream(cameraId);
+                    });
+                } else if (data.cameras.length > 0) {
+                    statusDiv.innerHTML = `
+                        <p style="color: #FFA500; margin-top: 10px;">
+                            ⚠️ Found ${data.cameras.length} camera(s) but auto-start was disabled or failed.
+                        </p>
+                    `;
+                } else {
+                    statusDiv.innerHTML = '<p style="color: #888; margin-top: 10px;">No cameras found on network.</p>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<p style="color: #f44336; margin-top: 10px;">❌ Error: ${error.message}</p>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '⚡ One-Click Auto-Discover & Start All Cameras';
+            }
+        }
+
+        async function discoverCameras() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '🔍 Discovering cameras...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/stream/discover`);
+                const data = await response.json();
+                
+                const listDiv = document.getElementById('discovered-list');
+                if (data.cameras.length === 0) {
+                    listDiv.innerHTML = '<p style="color: #888; margin-top: 10px;">No cameras found on network.</p>';
+                } else {
+                    listDiv.innerHTML = '<div class="discovered-cameras"><h3>Found ' + data.cameras.length + ' camera(s):</h3></div>';
+                    const container = listDiv.querySelector('.discovered-cameras');
+                    
+                    data.cameras.forEach(cam => {
+                        const item = document.createElement('div');
+                        item.className = 'camera-item';
+                        item.innerHTML = `
+                            <div>
+                                <div class="camera-url">${cam.rtsp_url}</div>
+                                <div style="font-size: 11px; color: #666;">${cam.ip}:${cam.port}</div>
+                            </div>
+                            <button onclick="useDiscoveredCamera('${cam.rtsp_url}')" style="width: auto; padding: 5px 15px;">Use This</button>
+                        `;
+                        container.appendChild(item);
+                    });
+                }
+            } catch (error) {
+                alert('Discovery failed: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Auto-Discover Cameras';
+            }
+        }
+
+        function useDiscoveredCamera(rtspUrl) {
+            document.getElementById('rtsp-url').value = rtspUrl;
+            document.getElementById('camera-id').value = 'cam-' + Date.now();
+            document.getElementById('auto-discover-mode').checked = false;
+            toggleDiscoveryMode();
+        }
+
+        async function startStream() {
+            const cameraId = document.getElementById('camera-id').value;
+            const autoDiscover = document.getElementById('auto-discover-mode').checked;
+            const priority = document.getElementById('priority').value;
+
+            if (!cameraId) {
+                alert('Please enter a Camera ID');
+                return;
+            }
+
+            const requestBody = {
+                camera_id: cameraId,
+                config_name: 'default',
+                priority: priority,
+                auto_discover: autoDiscover
+            };
+
+            if (autoDiscover) {
+                const network = document.getElementById('discovery-network').value;
+                requestBody.discovery_network = network;
+                requestBody.rtsp_url = null;
+            } else {
+                const rtspUrl = document.getElementById('rtsp-url').value;
+                if (!rtspUrl) {
+                    alert('Please enter RTSP URL or enable auto-discover');
+                    return;
+                }
+                requestBody.rtsp_url = rtspUrl;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/stream/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const data = await response.json();
+                
+                if (data.started) {
+                    activeStreams.add(cameraId);
+                    addVideoStream(cameraId);
+                    
+                    if (data.discovered) {
+                        alert(`✅ Stream started!\n\nAuto-discovered URL: ${data.rtsp_url}`);
+                    } else {
+                        alert('✅ Stream started successfully!');
+                    }
+                } else {
+                    alert('Failed to start stream: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error starting stream: ' + error.message);
+            }
+        }
+
+        function addVideoStream(cameraId) {
+            const grid = document.getElementById('video-grid');
+            
+            // Check if already exists
+            if (document.getElementById(`stream-${cameraId}`)) {
+                return;
+            }
+
+            const container = document.createElement('div');
+            container.className = 'video-container';
+            container.id = `stream-${cameraId}`;
+            
+            container.innerHTML = `
+                <div class="video-header">
+                    <span class="camera-id">${cameraId}</span>
+                    <span class="status">● Live</span>
+                </div>
+                <img src="${API_BASE}/stream/video/${cameraId}" alt="${cameraId}" onerror="handleStreamError('${cameraId}')">
+                <div class="stats">
+                    FPS: <span id="fps-${cameraId}">--</span> | 
+                    Resolution: <span id="res-${cameraId}">--</span>
+                </div>
+                <button onclick="stopStream('${cameraId}')" class="btn-danger">⏹ Stop Stream</button>
+            `;
+            
+            grid.appendChild(container);
+        }
+
+        async function stopStream(cameraId) {
+            try {
+                const response = await fetch(`${API_BASE}/stream/stop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ camera_id: cameraId })
+                });
+
+                const data = await response.json();
+                
+                if (data.stopped) {
+                    activeStreams.delete(cameraId);
+                    const element = document.getElementById(`stream-${cameraId}`);
+                    if (element) {
+                        element.remove();
+                    }
+                }
+            } catch (error) {
+                alert('Error stopping stream: ' + error.message);
+            }
+        }
+
+        function handleStreamError(cameraId) {
+            const container = document.getElementById(`stream-${cameraId}`);
+            if (container) {
+                const status = container.querySelector('.status');
+                status.textContent = '● Error';
+                status.classList.add('error');
+            }
+        }
+
+        // Auto-refresh stream stats every 2 seconds
+        setInterval(async () => {
+            for (const cameraId of activeStreams) {
+                // In future, fetch real stats from API
+                // For now, just update placeholder
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

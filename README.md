@@ -22,10 +22,14 @@ AdaFace recognition (pretrained) + periocular + ReID → PaMIE fusion → tracki
 - Complete API routes under `/api/v1`
 - Unit tests with FastAPI TestClient
 
-### 🔲 Module 2: Frame Ingestion (TODO)
-- RTSP capture service
-- Frame queue
-- **BAFS scheduler**: keyframe selection using motion estimation + yaw/orientation signals
+### ✅ Module 2: RTSP Streams + BAFS Scheduler (COMPLETED)
+- RTSP stream capture with OpenCV
+- Auto-reconnection on failures
+- Thread-safe frame queue with overflow handling
+- **BAFS scheduler**: Dynamic FPS allocation based on priority
+- **MJPEG streaming**: View live video in browser
+- **Auto camera discovery**: Find RTSP cameras on network
+- Web-based stream viewer (viewer.html)
 
 ### 🔲 Module 3-16: Pipeline Components (TODO)
 See PIPELINE MODULE ORDER in project documentation.

@@ -4,8 +4,14 @@ Stream management service with RTSP and BAFS integration (Module 2).
 Manages RTSP stream capture with Budget-Aware Frame Scheduling.
 """
 
+import asyncio
 import logging
-from collections.abc import Mapping
+import socket
+from collections.abc import AsyncGenerator, Mapping
+from typing import Any
+
+import cv2
+import numpy as np
 
 from app.models.rtsp_models import (
     RTSPConfig,
@@ -202,6 +208,219 @@ class StreamService:
 
         # Remove RTSP client
         self._rtsp_manager.remove_client(camera_id)
+
+    async def generate_mjpeg_stream(self, camera_id: str) -> AsyncGenerator[bytes, None]:
+        """
+        Generate MJPEG stream from camera frames.
+
+        Args:
+            camera_id: Camera identifier
+
+        Yields:
+            MJPEG frame bytes
+        """
+        frame_queue = self._queue_manager.get_queue(camera_id)
+        if frame_queue is None:
+            logger.error("Frame queue not found for camera %s", camera_id)
+            return
+
+        logger.info("Starting MJPEG stream for camera %s", camera_id)
+
+        try:
+            while True:
+                # Get latest frame from queue
+                frame = frame_queue.peek_latest()
+
+                if frame is not None:
+                    # Encode frame as JPEG
+                    try:
+                        _, buffer = cv2.imencode(".jpg", frame.data)
+                        frame_bytes = buffer.tobytes()
+
+                        # Yield MJPEG frame
+                        yield (
+                            b"--frame\r\n"
+                            b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+                        )
+                    except Exception as e:
+                        logger.exception("Error encoding frame: %s", e)
+
+                # Small delay to control frame rate
+                await asyncio.sleep(0.033)  # ~30 FPS
+
+        except asyncio.CancelledError:
+            logger.info("MJPEG stream cancelled for camera %s", camera_id)
+        except Exception as e:
+            logger.exception("Error in MJPEG stream for camera %s: %s", camera_id, e)
+
+    async def discover_rtsp_cameras(
+        self, network: str = "192.168.1.0/24", timeout: float = 2.0
+    ) -> list[dict[str, str]]:
+        """
+        Auto-discover RTSP cameras on the network.
+
+        Scans common RTSP ports and tests common URL patterns.
+
+        Args:
+            network: Network to scan in CIDR notation (default: 192.168.1.0/24)
+            timeout: Connection timeout in seconds
+
+        Returns:
+            List of discovered camera information dictionaries
+        """
+        discovered_cameras: list[dict[str, str]] = []
+
+        # Common RTSP ports
+        rtsp_ports = [554, 8554, 5554]
+
+        # Common RTSP URL patterns for different manufacturers
+        url_patterns = [
+            "/stream",
+            "/stream1",
+            "/live",
+            "/live/main",
+            "/cam/realmonitor",
+            "/h264",
+            "/h264_stream",
+            "/video.h264",
+            "/Streaming/Channels/101",  # Hikvision
+            "/axis-media/media.amp",  # Axis
+            "/onvif1",  # ONVIF
+            "/ch0_0.h264",  # Dahua
+        ]
+
+        logger.info("Starting RTSP camera discovery on network %s", network)
+
+        # Parse network range
+        base_ip = network.split("/")[0].rsplit(".", 1)[0]
+        start_ip = 1
+        end_ip = 255
+
+        # Scan IP range
+        for last_octet in range(start_ip, min(end_ip, 20)):  # Limit scan to first 20 IPs
+            ip = f"{base_ip}.{last_octet}"
+
+            for port in rtsp_ports:
+                # Check if port is open
+                if await self._is_port_open(ip, port, timeout):
+                    logger.info("Found open RTSP port at %s:%d", ip, port)
+
+                    # Try different URL patterns
+                    for pattern in url_patterns:
+                        rtsp_url = f"rtsp://{ip}:{port}{pattern}"
+
+                        # Try to connect
+                        if await self._test_rtsp_url(rtsp_url, timeout):
+                            discovered_cameras.append(
+                                {
+                                    "ip": ip,
+                                    "port": str(port),
+                                    "rtsp_url": rtsp_url,
+                                    "status": "accessible",
+                                }
+                            )
+                            logger.info("Discovered RTSP camera: %s", rtsp_url)
+                            break  # Found working URL for this IP
+
+        logger.info("Discovery complete. Found %d cameras", len(discovered_cameras))
+        return discovered_cameras
+
+    async def discover_camera_for_stream(
+        self, camera_id: str, network: str = "192.168.1.0/24", timeout: float = 2.0
+    ) -> str | None:
+        """
+        Discover a single RTSP camera for immediate stream start.
+
+        Useful for auto-discovery mode in stream start.
+
+        Args:
+            camera_id: Camera identifier (for logging)
+            network: Network to scan
+            timeout: Connection timeout
+
+        Returns:
+            First discovered RTSP URL or None if no camera found
+        """
+        logger.info("Auto-discovering camera for %s on network %s", camera_id, network)
+
+        discovered = await self.discover_rtsp_cameras(network=network, timeout=timeout)
+
+        if not discovered:
+            logger.warning("No cameras discovered for %s", camera_id)
+            return None
+
+        # Return first discovered camera
+        rtsp_url = discovered[0]["rtsp_url"]
+        logger.info("Auto-discovered URL for %s: %s", camera_id, rtsp_url)
+        return rtsp_url
+
+    async def _is_port_open(self, ip: str, port: int, timeout: float) -> bool:
+        """
+        Check if a port is open on an IP address.
+
+        Args:
+            ip: IP address
+            port: Port number
+            timeout: Connection timeout
+
+        Returns:
+            True if port is open
+        """
+        try:
+            # Use asyncio to avoid blocking
+            future = asyncio.open_connection(ip, port)
+            reader, writer = await asyncio.wait_for(future, timeout=timeout)
+            writer.close()
+            await writer.wait_closed()
+            return True
+        except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
+            return False
+
+    async def _test_rtsp_url(self, rtsp_url: str, timeout: float) -> bool:
+        """
+        Test if an RTSP URL is accessible.
+
+        Args:
+            rtsp_url: RTSP URL to test
+            timeout: Connection timeout
+
+        Returns:
+            True if URL is accessible
+        """
+        try:
+            # Use asyncio to run OpenCV test in thread pool
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None, self._test_rtsp_url_sync, rtsp_url, timeout
+            )
+            return result
+        except Exception as e:
+            logger.debug("Failed to test RTSP URL %s: %s", rtsp_url, e)
+            return False
+
+    def _test_rtsp_url_sync(self, rtsp_url: str, timeout: float) -> bool:
+        """
+        Synchronous RTSP URL test using OpenCV.
+
+        Args:
+            rtsp_url: RTSP URL to test
+            timeout: Connection timeout
+
+        Returns:
+            True if URL is accessible
+        """
+        try:
+            cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+            cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, int(timeout * 1000))
+
+            if cap.isOpened():
+                # Try to read one frame
+                ret, _ = cap.read()
+                cap.release()
+                return ret
+            return False
+        except Exception:
+            return False
 
 
 # Global stream service instance
