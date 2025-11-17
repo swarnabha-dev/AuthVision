@@ -1,0 +1,38 @@
+# Main Backend Requirements
+
+# FastAPI Framework
+fastapi==0.104.1
+hypercorn==0.18.0
+python-multipart==0.0.6
+websockets==12.0
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.12.1
+aiosqlite==0.19.0
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dateutil==2.8.2
+
+# HTTP Client
+httpx==0.25.1
+requests==2.31.0
+
+# Video Processing
+ffmpeg-python==0.2.0
+numpy>=1.26.0,<2.0  # OpenCV compatibility
+pillow==10.1.0
+
+# Motion Detection (Background Subtraction)
+opencv-python==4.8.1.78
+
+# Utilities
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1

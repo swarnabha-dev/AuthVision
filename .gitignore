@@ -1,0 +1,178 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Environment variables
+.env.example
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Storage & Database
+storage/
+*.db
+*.sqlite
+*.sqlite3
+
+# Model weights & cache
+*.pt
+*.pth
+*.onnx
+*.pkl
+weights/
+.deepface/
+checkpoints/
+*.h5
+
+# Testing (exclude all except interactive_test.py)
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+tests/test_*.py
+tests/conftest.py
+main_backend/tests/test_*.py
+main_backend/tests/conftest.py
+model_server/tests/test_*.py
+model_server/tests/conftest.py
+# Keep interactive test
+!main_backend/tests/interactive_test.py
+
+# Summary/documentation files
+*summary*.md
+*SUMMARY*.md
+*Summary*.md
+CHANGELOG*.md
+NOTES*.md
+TODO*.md
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Compiled files
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+
+# Packages
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Photos (uploaded by users - keep structure but not content)
+photos/*
+!photos/.gitkeep
+
+# Alembic migration versions (keep migrations folder structure)
+alembic/versions/*.py
+!alembic/versions/__init__.py
+
+# Node modules (if any frontend)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*.ipynb
+
+# PyCharm
+.idea/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+
+*.txt
+*.md
+!requirements.txt
+!readme.md
+
+#script
+*.bat
+*.sh
+*.ps1

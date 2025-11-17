@@ -1,0 +1,81 @@
+# Model Server Requirements
+# Python 3.11+
+# Optimized for CPU-only deployment
+
+# ===================================================================
+# WEB FRAMEWORK
+# ===================================================================
+fastapi==0.109.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+hypercorn[trio]==0.16.0
+python-multipart==0.0.6
+python-dotenv==1.2.1
+
+# ===================================================================
+# DEEP LEARNING & COMPUTER VISION (CPU-Optimized)
+# ===================================================================
+# TensorFlow CPU-only (no CUDA, smaller package)
+tensorflow-cpu==2.16.1
+tf-keras==2.16.0
+tensorboard==2.16.2
+
+# Critical: Specific versions for TensorFlow 2.16.x compatibility
+protobuf==4.25.3
+ml-dtypes==0.3.2
+
+# PyTorch CPU-only
+torch==2.1.2
+torchvision==0.16.2
+
+# Face Recognition & Detection
+deepface==0.0.95
+ultralytics==8.1.0
+
+# Computer Vision
+opencv-python==4.9.0.80
+pillow==10.2.0
+numpy==1.26.3
+
+# ===================================================================
+# TRACKING & KALMAN FILTER
+# ===================================================================
+filterpy==1.4.5
+scipy==1.11.4
+
+# ===================================================================
+# SECURITY & UTILITIES
+# ===================================================================
+# JWT Authentication
+PyJWT==2.8.0
+bcrypt==4.1.2
+
+# Legacy security (deprecated)
+python-jose[cryptography]==3.3.0
+aiofiles==23.2.1
+
+# ===================================================================
+# DEVELOPMENT & TESTING
+# ===================================================================
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-cov==7.0.0
+httpx==0.26.0
+black==23.12.1
+ruff==0.1.11
+
+# ===================================================================
+# NOTES
+# ===================================================================
+# CPU-ONLY SETUP:
+# - tensorflow-cpu (no GPU support, ~50% smaller)
+# - protobuf==4.25.3 (required for tf-keras 2.16.0)
+# - ml-dtypes==0.3.2 (required for TensorFlow 2.16.x)
+#
+# DO NOT install regular 'tensorflow' package alongside tensorflow-cpu
+# DO NOT upgrade protobuf beyond 4.25.x (breaks tf-keras 2.16.0)
+#
+# Expected Performance:
+# - Detection + Embedding: 200-400ms per frame
+# - Throughput: ~3-5 FPS on modern CPU
+# - Memory: ~500MB base + 100MB per stream
