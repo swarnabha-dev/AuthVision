@@ -103,11 +103,26 @@ class KalmanBoxTracker:
         self.kf.update(measurement)
     
     def get_bbox(self) -> Tuple[int, int, int, int]:
-        """Get current bounding box from state."""
+        """Get current bounding box from state. Returns None if Kalman diverged (NaN)."""
         cx, cy, area, aspect_ratio = self.kf.x[:4].flatten()
+        
+        # Check for NaN values (Kalman filter diverged)
+        if np.isnan(cx) or np.isnan(cy) or np.isnan(area) or np.isnan(aspect_ratio):
+            logger.warning("⚠️ Kalman filter diverged (NaN values detected) - returning None")
+            return None
+        
+        # Check for invalid values
+        if area <= 0 or aspect_ratio <= 0:
+            logger.warning(f"⚠️ Invalid Kalman state: area={area}, aspect_ratio={aspect_ratio}")
+            return None
         
         w = np.sqrt(area * aspect_ratio)
         h = area / (w + 1e-6)
+        
+        # Check for NaN after calculations
+        if np.isnan(w) or np.isnan(h):
+            logger.warning("⚠️ NaN detected in bbox calculations")
+            return None
         
         x1 = int(cx - w / 2)
         y1 = int(cy - h / 2)
@@ -145,6 +160,32 @@ class MultiStreamTracker:
         self.stream_next_id: Dict[str, int] = defaultdict(lambda: 1)
         self.stream_frame_count: Dict[str, int] = defaultdict(int)
     
+    def _is_valid_bbox(self, bbox: Tuple[int, int, int, int]) -> bool:
+        """
+        Check if bbox is valid for Kalman tracking.
+        
+        Args:
+            bbox: Bounding box (x1, y1, x2, y2)
+            
+        Returns:
+            True if bbox is valid
+        """
+        x1, y1, x2, y2 = bbox
+        
+        # Check if coordinates are in correct order
+        if x2 <= x1 or y2 <= y1:
+            logger.warning(f"Invalid bbox coordinates: {bbox} (x2 <= x1 or y2 <= y1)")
+            return False
+        
+        # Check minimum size (at least 10 pixels width and height)
+        width = x2 - x1
+        height = y2 - y1
+        if width < 10 or height < 10:
+            logger.warning(f"Bbox too small: {bbox} (width={width}, height={height})")
+            return False
+        
+        return True
+    
     def update(
         self,
         stream_url: str,
@@ -170,7 +211,13 @@ class MultiStreamTracker:
         for track in tracks.values():
             if hasattr(track, 'kalman'):
                 track.kalman.predict()
-                track.bbox = track.kalman.get_bbox()
+                predicted_bbox = track.kalman.get_bbox()
+                if predicted_bbox is None:
+                    # Kalman filter diverged - mark track for removal
+                    logger.warning(f"Track {track.track_id} Kalman diverged during predict, marking for removal")
+                    track.time_since_update = self.max_age + 1
+                else:
+                    track.bbox = predicted_bbox
         
         # Match detections to tracks
         if detections and tracks:
@@ -188,7 +235,14 @@ class MultiStreamTracker:
                 # Update Kalman filter
                 if hasattr(track, 'kalman'):
                     track.kalman.update(bbox)
-                    track.bbox = track.kalman.get_bbox()
+                    updated_bbox = track.kalman.get_bbox()
+                    if updated_bbox is None:
+                        # Kalman filter diverged after update - reinitialize with current detection
+                        logger.warning(f"Track {track.track_id} Kalman diverged after update, reinitializing")
+                        track.kalman = KalmanBoxTracker(bbox)
+                        track.bbox = bbox
+                    else:
+                        track.bbox = updated_bbox
                 else:
                     track.bbox = bbox
                 
@@ -200,6 +254,12 @@ class MultiStreamTracker:
             # Create new tracks for unmatched detections
             for det_idx in unmatched_dets:
                 bbox, conf = detections[det_idx]
+                
+                # Validate bbox before creating Kalman tracker
+                if not self._is_valid_bbox(bbox):
+                    logger.warning(f"Skipping invalid detection: {bbox}")
+                    continue
+                
                 track_id = self.stream_next_id[stream_url]
                 self.stream_next_id[stream_url] += 1
                 
@@ -220,6 +280,11 @@ class MultiStreamTracker:
         elif detections:
             # No existing tracks, create new ones
             for bbox, conf in detections:
+                # Validate bbox before creating Kalman tracker
+                if not self._is_valid_bbox(bbox):
+                    logger.warning(f"Skipping invalid detection: {bbox}")
+                    continue
+                
                 track_id = self.stream_next_id[stream_url]
                 self.stream_next_id[stream_url] += 1
                 
