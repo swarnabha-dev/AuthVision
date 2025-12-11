@@ -1,0 +1,7 @@
+body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;line-height:1.4;margin:0;padding:0}
+.container{max-width:900px;margin:20px auto;padding:20px}
+section{border:1px solid #ddd;padding:12px;margin-bottom:12px;border-radius:6px}
+input{padding:8px;margin:6px}
+button{padding:8px 12px;margin:6px}
+#video{max-width:100%;border:1px solid #ccc}
+pre{background:#f7f7f7;padding:8px;border-radius:4px;overflow:auto}

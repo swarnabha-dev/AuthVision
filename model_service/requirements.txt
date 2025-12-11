@@ -1,0 +1,28 @@
+# Requirements for the model_service module
+fastapi
+hypercorn
+httpx
+sqlalchemy
+passlib
+pyjwt
+aiofiles
+pydantic
+
+# Use the deepface package requirements (deepface/requirements.txt contains model deps)
+-r ../deepface/requirements.txt
+fastapi
+deepface
+python-multipart
+hypercorn
+ultralytics
+opencv-python-headless
+numpy
+pillow
+scipy
+sqlalchemy
+httpx[http2] 
+pyjwt 
+passlib[bcrypt]
+pytest
+pytest-asyncio
+httpx

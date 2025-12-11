@@ -1,0 +1,1 @@
+hypercorn model_service.main:app --bind 0.0.0.0:8001 --worker-class asyncio --workers 1 --access-logfile - --error-logfile -
