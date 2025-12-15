@@ -25,62 +25,32 @@ except Exception as e:
     LOG.error("Failed to load templates dir: %s", e)
     jinja_env = None
 
-# Helper to find wkhtmltopdf with auto-install
-def install_wkhtmltopdf():
-    url = "https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.msvc2015-win64.exe"
-    LOG.info("wkhtmltopdf not found. Downloading from %s ...", url)
-    import urllib.request
-    import tempfile
-    import subprocess
-    
-    installer_path = os.path.join(tempfile.gettempdir(), "wkhtmltox_installer.exe")
-    try:
-        urllib.request.urlretrieve(url, installer_path)
-        LOG.info("Downloaded installer to %s. Installing silently (UAC prompt may appear)...", installer_path)
-        # Attempt silent install with Elevation (RunAs) via PowerShell
-        # This allows us to wait for completion (-Wait)
-        ps_cmd = f"Start-Process -FilePath '{installer_path}' -ArgumentList '/S' -Verb RunAs -Wait"
-        subprocess.run(["powershell", "-Command", ps_cmd], check=True)
-        
-        LOG.info("wkhtmltopdf installation process completed.")
-    except Exception as e:
-        LOG.error("Failed to install wkhtmltopdf: %s", e)
-    finally:
-        if os.path.exists(installer_path):
-            try:
-                os.remove(installer_path)
-            except:
-                pass
-
+# Helper to find wkhtmltopdf
 def get_wkhtmltopdf_config():
-    """Try to find wkhtmltopdf binary and return configuration. Auto-installs if missing."""
+    """Try to find wkhtmltopdf binary and return configuration."""
     possible_paths = [
         r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe",
         r"C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe",
         "/usr/bin/wkhtmltopdf",
         "/usr/local/bin/wkhtmltopdf"
     ]
-    
-    # Check if already accessible
-    import shutil
-    if shutil.which("wkhtmltopdf"):
-        return None # In PATH
+    path = None
+    # Check if on path
+    try:
+        import shutil
+        if shutil.which("wkhtmltopdf"):
+            return None # pdfkit finds it automatically if in PATH
+    except:
+        pass
         
     for p in possible_paths:
         if os.path.exists(p):
-            return pdfkit.configuration(wkhtmltopdf=p)
+            path = p
+            break
             
-    # If not found, try installing ONCE
-    # We use a primitive check to avoid infinite loops if install fails
-    if not getattr(get_wkhtmltopdf_config, "_install_attempted", False):
-        get_wkhtmltopdf_config._install_attempted = True
-        install_wkhtmltopdf()
-        # Retry finding it
-        for p in possible_paths:
-            if os.path.exists(p):
-                return pdfkit.configuration(wkhtmltopdf=p)
-    
-    return None # Will raise error later if still not found
+    if path:
+        return pdfkit.configuration(wkhtmltopdf=path)
+    return None # Hope it's in PATH or let pdfkit raise error if not found
 
 
 def _fetch_subject_data(subject_code: str, db: Session):
@@ -209,7 +179,8 @@ def download_subject_pdf(subject_identifier: str, db: Session = Depends(get_db),
     try:
         pdf = pdfkit.from_string(html_content, False, configuration=config)
     except OSError:
-        raise HTTPException(500, "wkhtmltopdf not found. Please install it to generate PDFs.")
+        url = "https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.msvc2015-win64.exe"
+        raise HTTPException(500, f"wkhtmltopdf not found. Please install it from: {url}")
         
     return Response(
         content=pdf,
@@ -266,7 +237,8 @@ def download_student_pdf(reg_no: str, db: Session = Depends(get_db), user = Depe
     try:
         pdf = pdfkit.from_string(html_content, False, configuration=config)
     except OSError:
-         raise HTTPException(500, "wkhtmltopdf not found. Please install it.")
+         url = "https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox-0.12.6-1.msvc2015-win64.exe"
+         raise HTTPException(500, f"wkhtmltopdf not found. Please install it from: {url}")
          
     return Response(
         content=pdf,

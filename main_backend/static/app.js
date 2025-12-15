@@ -385,7 +385,15 @@ async function downloadAuthenticated(url, filename) {
   try {
     const r = await fetch(API_BASE + url, { headers: { 'Authorization': 'Bearer ' + ACCESS } });
     if (!r.ok) {
-      alert('Download failed: ' + r.status + ' ' + await r.text());
+      // Check if error is text (e.g. wkhtmltopdf missing)
+      const txt = await r.text();
+      // JSON try
+      try {
+        const j = JSON.parse(txt);
+        alert('Download failed: ' + (j.detail || txt));
+      } catch (e) {
+        alert('Download failed: ' + txt);
+      }
       return;
     }
     const blob = await r.blob();
