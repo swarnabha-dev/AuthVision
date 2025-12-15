@@ -105,6 +105,11 @@ async def enroll_photos(reg_no: str, files: List[UploadFile] = File(...), db: Se
             headers = await get_headers_async()
             resp = await client.post(url, files=multipart, data=data, headers=headers, timeout=30.0)
             LOG.info("model service refresh-db status=%s detail=%s", resp.status_code, resp.text[:200])
+            
+            if resp.status_code != 200:
+                # Forward the error status and detail
+                raise HTTPException(status_code=resp.status_code, detail=resp.text)
+            
             return {"status": resp.status_code, "detail": resp.text}
     except Exception as e:
         LOG.exception("enroll photos failed for %s: %s", reg_no, e)
