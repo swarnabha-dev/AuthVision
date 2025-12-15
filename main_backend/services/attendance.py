@@ -31,7 +31,7 @@ class AttendanceManager:
     def start_session(self, stream_name: str, subject_code: str, department_name: str, semester: int, section: str, user_username: str):
         with self._lock:
             if self.current_session:
-                raise ValueError(f"Session already running for {self.current_session['subject_code']}")
+                raise ValueError(f"Session already running")
             
             # verify stream exists
             try:
@@ -51,8 +51,8 @@ class AttendanceManager:
                     subject_code=subject_code,
                     date=datetime.utcnow().date(),
                     start_time=datetime.utcnow(),
-                    session_type="Lecture", # Default
-                    location="Classroom" # Default or passed param
+                    session_type="Lecture",
+                    location="Classroom"
                 )
                 db.add(new_session)
                 db.commit()
@@ -69,18 +69,66 @@ class AttendanceManager:
             self.current_session = {
                 "id": session_id,
                 "stream_name": stream_name,
-                "subject_code": subject_code,
+                "type": "student",
                 "department": department_name,
                 "semester": semester,
                 "section": section,
-                "started_by": user_username,
                 "start_time": datetime.utcnow()
             }
-            self._thread = threading.Thread(target=self._attendance_loop, args=(stream_name, session_id, department_name, semester, section))
+            self._thread = threading.Thread(target=self._attendance_loop, args=(stream_name, session_id))
             self._thread.daemon = True
             self._thread.start()
-            LOG.info("attendance session started for subject=%s dept=%s sem=%s", subject_code, department_name, semester)
+            LOG.info("attendance session started for subject=%s", subject_code)
             
+            return session_id
+
+    def start_conference_session(self, stream_name: str, conference_code: str, user_username: str):
+        with self._lock:
+            if self.current_session:
+                 raise ValueError("Session already running")
+            
+            try:
+                stream_srv.get_capturer(stream_name)
+            except Exception:
+                raise ValueError(f"Stream {stream_name} not found")
+
+            db = SessionLocal()
+            try:
+                conf = db.query(m.Conference).filter(m.Conference.code == conference_code).first()
+                if not conf:
+                     raise ValueError(f"Conference {conference_code} not found")
+
+                new_session = m.AttendanceSession(
+                    conference_id=conf.id, # New field
+                    date=datetime.utcnow().date(),
+                    start_time=datetime.utcnow(),
+                    session_type="Conference",
+                    location="Venue" # generic
+                )
+                # subject_code is nullable now (updated model)
+                db.add(new_session)
+                db.commit()
+                db.refresh(new_session)
+                session_id = new_session.id
+                LOG.info(f"Created ConferenceSession ID={session_id} for {conference_code}")
+            except Exception as e:
+                 db.rollback()
+                 raise e
+            finally:
+                 db.close()
+
+            self._stop_event.clear()
+            self.current_session = {
+                "id": session_id,
+                "stream_name": stream_name,
+                "type": "guest",
+                "conference_id": conf.id,
+                "start_time": datetime.utcnow()
+            }
+            self._thread = threading.Thread(target=self._attendance_loop, args=(stream_name, session_id))
+            self._thread.daemon = True
+            self._thread.start()
+            LOG.info("conference session started for %s", conference_code)
             return session_id
 
     def stop_session(self):
@@ -109,31 +157,59 @@ class AttendanceManager:
             LOG.info("attendance session stopped")
             return True
 
-    def _attendance_loop(self, stream_name, session_id, department, semester, section):
+    def _attendance_loop(self, stream_name, session_id):
         LOG.info("attendance loop running for stream=%s session=%d", stream_name, session_id)
+        session_meta = self.current_session # Snapshot
         
-        # Async loop for WebSocket broadcasting and Async HTTP
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-        # subscribe to stream
         capturer = stream_srv.get_capturer(stream_name)
         q = capturer.subscribe()
         
         last_process_time = 0
-        interval = 2.0 # Faster recognition interval
+        interval = 2.0 
 
-        # Fetch eligible students once
+        # Fetch Participants
         db = SessionLocal()
-        eligible_regs = set()
-        reg_to_name = {}
+        eligible_ids = set()
+        id_to_details = {}
+        
         try:
-             students = db.query(m.Student).filter(m.Student.department == department, m.Student.semester == semester, m.Student.section == section).all()
-             eligible_regs = {s.reg_no for s in students}
-             reg_to_name = {s.reg_no: s.name for s in students}
-             LOG.info("loaded %d eligible students for attendance", len(eligible_regs))
+             if session_meta['type'] == 'student':
+                 # Student Mode
+                 dept = session_meta['department']
+                 sem = session_meta['semester']
+                 sec = session_meta['section']
+                 students = db.query(m.Student).filter(m.Student.department == dept, m.Student.semester == sem, m.Student.section == sec).all()
+                 eligible_ids = {s.reg_no for s in students}
+                 id_to_details = {
+                     s.reg_no: {
+                         "name": s.name,
+                         "semester": s.semester,
+                         "section": s.section,
+                         "department": s.department,
+                         "type": "student"
+                     } for s in students
+                 }
+             else:
+                 # Guest Mode
+                 cid = session_meta['conference_id']
+                 guests = db.query(m.Guest).filter(m.Guest.conference_id == cid).all()
+                 # Identity is "guest_{id}"
+                 for g in guests:
+                     identity = f"guest_{g.id}"
+                     eligible_ids.add(identity)
+                     id_to_details[identity] = {
+                         "name": g.name,
+                         "organization": g.organization,
+                         "type": "guest",
+                         "db_id": g.id
+                     }
+                 
+             LOG.info("loaded %d eligible participants", len(eligible_ids))
         except Exception as e:
-            LOG.error("failed to load students for attendance: %s", e)
+            LOG.error("failed to load participants: %s", e)
             db.close()
             capturer.unsubscribe(q)
             loop.close()
@@ -145,13 +221,10 @@ class AttendanceManager:
             frame_count = 0
             PROCESS_EVERY_N_FRAMES = 5 
             
-            # Reuse client? Better to use context manager per request or long-lived?
-            # Long-lived is better for connection pooling.
-            
             while not self._stop_event.is_set():
                 if self._stop_event.is_set(): break
 
-                # Drain queue
+                # Drain
                 if not q.empty():
                      while not q.empty():
                          if self._stop_event.is_set(): break
@@ -162,127 +235,129 @@ class AttendanceManager:
                     except Exception: continue 
 
                 if self._stop_event.is_set(): break
-
                 frame_count += 1
                 if frame_count % PROCESS_EVERY_N_FRAMES != 0: continue
 
                 now = time.time()
                 if now - last_process_time < interval: continue
-                
                 last_process_time = now
 
-                # process frame
                 import base64
                 b64 = base64.b64encode(frame).decode('utf-8')
                 
                 if self._stop_event.is_set(): break
 
                 try:
-                    # Run async process in the loop
-                    loop.run_until_complete(self._process_frame_async(b64, eligible_regs, reg_to_name, session_id))
+                    loop.run_until_complete(self._process_frame_async(b64, eligible_ids, id_to_details, session_id))
                 except Exception as e:
-                    LOG.error("error processing attendance frame: %s", e)
+                    LOG.error("error processing frame: %s", e)
         finally:
             capturer.unsubscribe(q)
             loop.run_until_complete(loop.shutdown_asyncgens())
             loop.close()
             LOG.info("attendance loop terminated")
 
-    async def _process_frame_async(self, image_b64, eligible_regs, reg_to_name, session_id):
+    async def _process_frame_async(self, image_b64, eligible_ids, id_to_details, session_id):
         from ..services.model_client import get_headers_sync
         
-        # 1. Call Model Service (Async)
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
                 headers = get_headers_sync()
-                # Use await
                 resp = await client.post(f"{config.MODEL_SERVICE_URL}/recognise", json={"image_b64": image_b64}, headers=headers)
-                
-                if resp.status_code != 200:
-                    LOG.warning("model service error: %d %s", resp.status_code, resp.text)
-                    return
-                
+                if resp.status_code != 200: return
                 data = resp.json()
-            except httpx.ReadTimeout:
-                LOG.warning("Model service timed out (10s)")
-                return
-            except httpx.RequestError as e:
-                LOG.warning(f"Model service request failed: {e}")
-                return
-            except Exception as e:
-                LOG.error(f"Model service unexpected error: {e}")
-                return
+            except (httpx.ReadTimeout, httpx.RequestError): return
+            except Exception: return
 
-        # LOG RAW RESPONSE to debug "missing logs"
-        LOG.info("RAW RECOGNITION DATA: %s", data)
+        # LOG.info("RAW: %s", data)
             
-        # 2. Extract Identities
-        recognized = set()
+        recognized_map = {} 
         def extract_ids(obj):
-            ids = set()
+            temp = {}
             if isinstance(obj, dict):
                 if 'identity' in obj:
                      val = obj['identity']
-                     # Filter by eligible
-                     if val in eligible_regs:
-                         ids.add(val)
+                     conf = obj.get('confidence', 0.0)
+                     
+                     matched = None
+                     if val in eligible_ids:
+                         matched = val
                      else:
-                         for r in eligible_regs:
+                         for r in eligible_ids:
                              if r in val:
-                                 ids.add(r)
+                                 matched = r
+                                 break
+                     
+                     if matched:
+                         if matched not in temp or conf > temp[matched]:
+                             temp[matched] = conf
                 for v in obj.values():
-                    ids |= extract_ids(v)
+                    sub = extract_ids(v)
+                    for k, c in sub.items():
+                        if k not in temp or c > temp[k]: temp[k] = c
             elif isinstance(obj, list):
                 for it in obj:
-                    ids |= extract_ids(it)
-            return ids
+                    sub = extract_ids(it)
+                    for k, c in sub.items():
+                         if k not in temp or c > temp[k]: temp[k] = c
+            return temp
         
-        recognized = extract_ids(data)
+        recognized_map = extract_ids(data)
+        
+        if not recognized_map: return
 
-        if not recognized:
-            LOG.info("No eligible students recognized in this frame.")
-            return
+        LOG.info("Recognized: %s", recognized_map.keys())
 
-        LOG.info("Recognized Eligible: %s", recognized)
-
-        # 3. Record in DB and Broadcast
         db = SessionLocal()
         try:
-            for reg in recognized:
-                exists = db.query(m.AttendanceRecord).filter(
-                    m.AttendanceRecord.session_id == session_id,
-                    m.AttendanceRecord.student_reg == reg
-                ).first()
+            for identity, conf in recognized_map.items():
+                details = id_to_details.get(identity, {})
+                user_type = details.get("type", "student")
+                
+                # Check exist
+                q = db.query(m.AttendanceRecord).filter(m.AttendanceRecord.session_id == session_id)
+                if user_type == "student":
+                    q = q.filter(m.AttendanceRecord.student_reg == identity)
+                else:
+                    gid = details.get("db_id")
+                    q = q.filter(m.AttendanceRecord.guest_id == gid)
+                
+                exists = q.first()
 
                 if not exists:
                     rec = m.AttendanceRecord(
                         session_id=session_id,
-                        student_reg=reg,
                         status=m.AttendanceStatus.PRESENT,
                         recorded_at=datetime.utcnow()
                     )
+                    if user_type == "student":
+                        rec.student_reg = identity
+                    else:
+                        rec.guest_id = details.get("db_id")
+                    
                     db.add(rec)
                     db.commit()
-                    LOG.info("Marked %s present in session %d", reg, session_id)
+                    LOG.info("Marked %s present", identity)
                     
                     # Broadcast
-                    student_name = reg_to_name.get(reg, "Unknown")
                     msg = {
                         "type": "recognition",
-                        "student": {
-                            "reg_no": reg,
-                            "name": student_name,
-                            "timestamp": datetime.now().strftime("%H:%M:%S")
+                        "student": { # Keep key 'student' for frontend compatibility or rename?
+                            # Frontend expects reg_no, name etc.
+                            # For Guest, map 'organization' to 'department'? relative mapping
+                            "reg_no": identity if user_type == 'student' else f"Guest-{details.get('db_id')}",
+                            "name": details.get("name"),
+                            "department": details.get("department") if user_type == 'student' else details.get("organization"),
+                            "semester": details.get("semester", ""),
+                            "section": details.get("section", ""),
+                            "is_guest": (user_type == 'guest'),
+                            "timestamp": datetime.now().strftime("%H:%M:%S"),
+                            "confidence": round(conf, 2)
                         }
                     }
                     await ws_manager.broadcast(msg)
-                else:
-                     # Already present, maybe we still want to broadcast "Latest Seen"?
-                     # For now, only broadcast ONCE upon marking. 
-                     # If user wants "Live Feed" showing every detection, we can move broadcast outside `if not exists`.
-                     pass
-        except Exception as commit_err:
-            LOG.error(f"DB/Broadcast failed: {commit_err}")
+        except Exception as e:
+            LOG.error(f"Persistence error: {e}")
             db.rollback()
         finally:
             db.close()

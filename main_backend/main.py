@@ -65,6 +65,8 @@ app.include_router(attendance_router.router, tags=["attendance"])
 app.include_router(departments_router.router, tags=["departments"], dependencies=[Depends(get_current_user)])
 app.include_router(faculty_router.router, tags=["faculty"], dependencies=[Depends(get_current_user)])
 app.include_router(reports_router.router, tags=["reports"], dependencies=[Depends(get_current_user)])
+from .routers import conferences as conferences_router
+app.include_router(conferences_router.router, tags=["conferences"], dependencies=[Depends(get_current_user)])
 # streaming router contains a WebSocket endpoint which performs its own token check
 # Do NOT apply the HTTP request-based `get_current_user` dependency at router-level
 # because it uses HTTPBearer (expects a Request) and will fail for WebSocket scopes.

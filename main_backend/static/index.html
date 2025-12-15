@@ -33,103 +33,103 @@
   </style>
 </head>
 
-<body>
-  <div class="container">
-    <h1>Main Backend - Test UI</h1>
+<div class="container">
+  <h1>Main Backend - Test UI</h1>
+  <a href="/static/conference.html" style="float:right; font-weight:bold;">Go to Conference Portal >></a>
 
-    <section id="auth">
-      <h2>Login</h2>
-      <input id="username" placeholder="username" />
-      <input id="password" placeholder="password" type="password" />
-      <button id="btn-login">Login</button>
-      <div id="tokens"></div>
-    </section>
+  <section id="auth">
+    <h2>Login</h2>
+    <input id="username" placeholder="username" />
+    <input id="password" placeholder="password" type="password" />
+    <button id="btn-login">Login</button>
+    <div id="tokens"></div>
+  </section>
 
-    <section id="register">
-      <h2>User creation (admin-only)</h2>
-      <input id="reg-regno" placeholder="registration no (2020...) or username" />
-      <div id="profile-fields">
-        <input id="reg-name" placeholder="full name" />
-        <select id="reg-dept"></select>
-      </div>
-      <div id="student-fields">
-        <input id="reg-sem" placeholder="semester" />
-        <input id="reg-section" placeholder="section (A)" />
-      </div>
-      <input id="reg-pass" placeholder="password" type="password" />
-      <label for="reg-role">Role:</label>
-      <select id="reg-role">
-        <option value="student">student</option>
-        <option value="faculty">faculty</option>
-        <option value="admin">admin</option>
-      </select>
-      <button id="btn-register">Create user (admin)</button>
-      <div id="reg-result"></div>
-    </section>
+  <section id="register">
+    <h2>User creation (admin-only)</h2>
+    <input id="reg-regno" placeholder="registration no (2020...) or username" />
+    <div id="profile-fields">
+      <input id="reg-name" placeholder="full name" />
+      <select id="reg-dept"></select>
+    </div>
+    <div id="student-fields">
+      <input id="reg-sem" placeholder="semester" />
+      <input id="reg-section" placeholder="section (A)" />
+    </div>
+    <input id="reg-pass" placeholder="password" type="password" />
+    <label for="reg-role">Role:</label>
+    <select id="reg-role">
+      <option value="student">student</option>
+      <option value="faculty">faculty</option>
+      <option value="admin">admin</option>
+    </select>
+    <button id="btn-register">Create user (admin)</button>
+    <div id="reg-result"></div>
+  </section>
 
-    <section id="stream">
-      <h2>Stream</h2>
-      <input id="stream-name" placeholder="stream name" value="camera1" />
-      <input id="stream-url" placeholder="rtsp url (for start)" />
-      <button id="btn-start">Start</button>
-      <button id="btn-stop">Stop</button>
-      <button id="btn-connect">Connect (view only)</button>
-      <div><img id="video" alt="stream" /></div>
-    </section>
+  <section id="stream">
+    <h2>Stream</h2>
+    <input id="stream-name" placeholder="stream name" value="camera1" />
+    <input id="stream-url" placeholder="rtsp url (for start)" />
+    <button id="btn-start">Start</button>
+    <button id="btn-stop">Stop</button>
+    <button id="btn-connect">Connect (view only)</button>
+    <div><img id="video" alt="stream" /></div>
+  </section>
 
-    <section id="subjects">
-      <h2>Subjects</h2>
-      <input id="sub-code" placeholder="code" />
-      <input id="sub-name" placeholder="name" />
-      <select id="sub-dept"></select>
-      <input id="sub-sem" placeholder="semester" />
-      <button id="btn-create-sub">Create</button>
-      <button id="btn-list-sub">List</button>
-      <pre id="sub-list"></pre>
-    </section>
+  <section id="subjects">
+    <h2>Subjects</h2>
+    <input id="sub-code" placeholder="code" />
+    <input id="sub-name" placeholder="name" />
+    <select id="sub-dept"></select>
+    <input id="sub-sem" placeholder="semester" />
+    <button id="btn-create-sub">Create</button>
+    <button id="btn-list-sub">List</button>
+    <pre id="sub-list"></pre>
+  </section>
 
-    <section id="attendance">
-      <h2>Session & Attendance</h2>
-      <input id="att-subject" placeholder="subject CODE (e.g. CSE101)" />
-      <select id="att-dept"></select>
-      <input id="att-sem" placeholder="semester" />
-      <input id="att-section" placeholder="section (A)" />
-      <button id="btn-trigger">Start Session</button>
-      <button id="btn-stop-att">Stop Session</button>
-      <div id="att-result"></div>
+  <section id="attendance">
+    <h2>Session & Attendance</h2>
+    <input id="att-subject" placeholder="subject CODE (e.g. CSE101)" />
+    <select id="att-dept"></select>
+    <input id="att-sem" placeholder="semester" />
+    <input id="att-section" placeholder="section (A)" />
+    <button id="btn-trigger">Start Session</button>
+    <button id="btn-stop-att">Stop Session</button>
+    <div id="att-result"></div>
 
-      <h3>Live Recognition Feed</h3>
-      <div id="live-feed">
-        <div style="color:#999; text-align:center">Waiting for recognitions...</div>
-      </div>
-    </section>
+    <h3>Live Recognition Feed</h3>
+    <div id="live-feed">
+      <div style="color:#999; text-align:center">Waiting for recognitions...</div>
+    </div>
+  </section>
 
-    <section id="student-actions">
-      <h2>Student Enrollment</h2>
-      <input id="enroll-regno" placeholder="registration no" />
-      <input id="file-input" type="file" multiple />
-      <button id="btn-enroll-photos">Upload Photos</button>
-      <div id="enroll-result"></div>
-    </section>
+  <section id="student-actions">
+    <h2>Student Enrollment</h2>
+    <input id="enroll-regno" placeholder="registration no" />
+    <input id="file-input" type="file" multiple />
+    <button id="btn-enroll-photos">Upload Photos</button>
+    <div id="enroll-result"></div>
+  </section>
 
-    <section id="reports">
-      <h2>Reports</h2>
-      <div>
-        <h3>Subject Summary</h3>
-        <input id="rep-sub-id" placeholder="subject CODE" />
-        <button id="btn-rep-sub">Get Summary</button>
-        <pre id="rep-sub-result"></pre>
-      </div>
-      <div>
-        <h3>Student Attendance</h3>
-        <input id="rep-student-reg" placeholder="student reg no" />
-        <button id="btn-rep-student">Get Report</button>
-        <pre id="rep-student-result"></pre>
-      </div>
-    </section>
+  <section id="reports">
+    <h2>Reports</h2>
+    <div>
+      <h3>Subject Summary</h3>
+      <input id="rep-sub-id" placeholder="subject CODE" />
+      <button id="btn-rep-sub">Get Summary</button>
+      <pre id="rep-sub-result"></pre>
+    </div>
+    <div>
+      <h3>Student Attendance</h3>
+      <input id="rep-student-reg" placeholder="student reg no" />
+      <button id="btn-rep-student">Get Report</button>
+      <pre id="rep-student-result"></pre>
+    </div>
+  </section>
 
-  </div>
-  <script src="/static/app.js?v=4"></script>
+</div>
+<script src="/static/app.js?v=4"></script>
 </body>
 
 </html>

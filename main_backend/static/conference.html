@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Conference Portal</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .conf-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .guest-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #eee;
+            padding: 5px;
+        }
+
+        #live-feed {
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #f9f9f9;
+            margin-top: 10px;
+        }
+
+        .feed-item {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Conference Mode Portal</h1>
+        <a href="/static/index.html">
+            << Back to Main</a>
+
+                <section id="auth">
+                    <h2>Login (Admin)</h2>
+                    <input id="username" placeholder="username" />
+                    <input id="password" placeholder="password" type="password" />
+                    <button id="btn-login">Login</button>
+                    <div id="auth-status"></div>
+                </section>
+
+                <div id="app" style="display:none">
+
+                    <section id="create-conf">
+                        <h2>Create Conference</h2>
+                        <input id="conf-code" placeholder="Code (e.g. AI2025)" />
+                        <input id="conf-name" placeholder="Name" />
+                        <input id="conf-desc" placeholder="Description" />
+                        <input id="conf-start" type="date" />
+                        <input id="conf-end" type="date" />
+                        <button id="btn-create-conf">Create</button>
+                    </section>
+
+                    <section id="select-conf">
+                        <h2>Select Conference</h2>
+                        <button id="btn-refresh-conf">Refresh List</button>
+                        <div id="conf-list"></div>
+                    </section>
+
+                    <section id="manage-conf" style="display:none; border: 2px solid #007bff; padding: 10px;">
+                        <h2 id="current-conf-title">Manage: </h2>
+                        <input type="hidden" id="current-conf-code" />
+
+                        <h3>Guests</h3>
+                        <div style="display:flex; gap: 10px;">
+                            <input id="guest-name" placeholder="Guest Name" />
+                            <input id="guest-email" placeholder="Email" />
+                            <input id="guest-org" placeholder="Organization" />
+                            <input id="guest-photo" type="file" />
+                            <button id="btn-add-guest">Add Guest</button>
+                        </div>
+                        <div id="add-guest-res"></div>
+
+                        <h4>Guest List</h4>
+                        <div id="guest-list-container" class="guest-list"></div>
+
+                        <h3>Live Session</h3>
+                        <input id="stream-name" placeholder="Stream Name (e.g. camera1)" value="camera1" />
+                        <button id="btn-start-session" style="background:crimson; color:white;">Start Conference
+                            Session</button>
+                        <button id="btn-stop-session">Stop Session</button>
+
+                        <h4>Live Feed</h4>
+                        <div id="live-feed">
+                            <div style="color:#999; text-align:center">Waiting for recognitions...</div>
+                        </div>
+                    </section>
+
+                </div>
+
+    </div>
+    <script src="/static/conference.js"></script>
+</body>
+
+</html>

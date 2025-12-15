@@ -53,7 +53,8 @@ function addToFeed(student) {
   // Create item
   const div = document.createElement('div');
   div.className = 'feed-item';
-  div.innerHTML = `<span class="feed-time">[${student.timestamp}]</span> <strong>${student.name}</strong> (${student.reg_no})`;
+  const info = `${student.department || ''} ${student.semester || ''}${student.section || ''}`;
+  div.innerHTML = `<span class="feed-time">[${student.timestamp}]</span> <strong>${student.name}</strong> (${student.reg_no}) <small>${info}</small>`;
 
   // Prepend
   feed.insertBefore(div, feed.firstChild);

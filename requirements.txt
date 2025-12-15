@@ -1,8 +1,8 @@
 # Top-level requirements that cover the whole workspace.
 # This includes module-specific requirement files below and common deps.
--r deepface/requirements.txt
--r model_service/requirements.txt
--r main_backend/requirements.txt
+# -r deepface/requirements.txt
+# -r model_service/requirements.txt
+# -r main_backend/requirements.txt
 
 # Common additional packages used by scripts and demos
 opencv-python
