@@ -96,6 +96,14 @@ async def log_requests(request: Request, call_next):
     return response
 
 
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Startup: Preloading DeepFace models...")
+    # This will load the model into memory so the first request is fast
+    deepface_service.ensure_deepface()
+    logger.info("Startup: DeepFace models preloaded.")
+
+
 @app.get("/")
 async def root():
     # Ensure DeepFace is imported and (optionally) preload the model

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, Form, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, Form, Query, Response
 from ..services.stream import get_capturer, stop_capturer
 from ..services.stream import Capturer
 from ..services.db import engine, Base, SessionLocal
@@ -11,6 +11,41 @@ import asyncio
 Base.metadata.create_all(bind=engine)
 
 router = APIRouter(prefix="/stream")
+
+@router.get('/{name}/snapshot')
+async def get_snapshot(name: str, token: str = Query(None)):
+    # Simple auth check if token provided, or maybe reliance on cookie? 
+    # Frontend usually uses headers but this is a GET potentially for <img> tag (though we will use fetch in JS).
+    # If fetch, we can use Authorization header, but here I'll stick to a simple check or looser auth for convenience 
+    # OR better: use Depends(require_role) if I change it to use Header?
+    # User asked for "capture photo", likely via JS fetch.
+    # Let's use Query token for consistency with WS or just open it for now if we assume Admin context.
+    # But `require_role` uses HTTPBearer which checks Header.
+    # Let's try to trust the caller or add token param.
+    # We'll rely on the frontend sending the token in the header if we use fetch.
+    
+    # Actually, simplest is to use `Depends(require_role(...))` and call via fetch with Auth header.
+    pass
+
+@router.get('/{name}/snapshot_image')
+async def snapshot(name: str, user=Depends(require_role('admin', 'faculty'))):
+    try:
+        c = stream_srv.get_capturer(name)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Stream not found")
+        
+    q = c.subscribe()
+    try:
+        # Wait for a frame (timeout 2s)
+        jpg = await asyncio.wait_for(q.get(), timeout=2.0)
+        return Response(content=jpg, media_type="image/jpeg")
+    except asyncio.TimeoutError:
+         raise HTTPException(status_code=504, detail="Timeout waiting for frame")
+    except Exception as e:
+         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        c.unsubscribe(q)
+
 
 
 @router.post('/start')

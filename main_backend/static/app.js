@@ -285,17 +285,61 @@ document.getElementById('btn-register').addEventListener('click', async () => {
 });
 
 // Enrollment photos upload
-document.getElementById('btn-enroll-photos').addEventListener('click', async () => {
+let CAPTURE_BLOB = null;
+
+document.getElementById('btn-capture').addEventListener('click', async () => {
+  const streamName = document.getElementById('capture-stream-name').value;
+  if (!streamName) { alert('Stream name required'); return; }
+  if (!ACCESS) { alert('Login first'); return; }
+
+  document.getElementById('capture-status').textContent = 'Capturing...';
+  try {
+    const r = await fetch(`${API_BASE}/stream/${streamName}/snapshot_image`, { headers: { 'Authorization': 'Bearer ' + ACCESS } });
+    if (!r.ok) throw await r.text();
+    const blob = await r.blob();
+    CAPTURE_BLOB = blob;
+
+    const url = URL.createObjectURL(blob);
+    const img = document.getElementById('captured-preview');
+    img.src = url;
+    img.style.display = 'block';
+    document.getElementById('capture-status').textContent = 'Captured!';
+  } catch (e) {
+    document.getElementById('capture-status').textContent = 'Error: ' + e;
+  }
+});
+
+document.getElementById('btn-enroll').addEventListener('click', async () => {
   const regno = document.getElementById('enroll-regno').value;
   const input = document.getElementById('file-input');
   if (!regno) { alert('enter registration no'); return }
   if (!ACCESS) { alert('login first'); return }
-  if (!input.files || input.files.length === 0) { alert('select files'); return }
+
   const fd = new FormData();
-  for (let i = 0; i < input.files.length; i++) fd.append('files', input.files[i], input.files[i].name);
+  let hasFiles = false;
+
+  if (input.files && input.files.length > 0) {
+    for (let i = 0; i < input.files.length; i++) {
+      fd.append('files', input.files[i], input.files[i].name);
+    }
+    hasFiles = true;
+  }
+
+  if (CAPTURE_BLOB) {
+    fd.append('files', CAPTURE_BLOB, 'captured_snapshot.jpg');
+    hasFiles = true;
+  }
+
+  if (!hasFiles) { alert('select files or capture photo'); return }
+
   const r = await fetch(API_BASE + `/students/${encodeURIComponent(regno)}/enroll-photos`, { method: 'POST', body: fd, headers: { 'Authorization': 'Bearer ' + ACCESS } });
   const txt = await r.text();
   document.getElementById('enroll-result').textContent = `status: ${r.status} detail: ${txt}`;
+
+  // Clear capture
+  CAPTURE_BLOB = null;
+  document.getElementById('captured-preview').style.display = 'none';
+  document.getElementById('capture-status').textContent = '';
 });
 
 // Reports

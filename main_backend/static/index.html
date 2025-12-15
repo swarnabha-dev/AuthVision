@@ -108,8 +108,18 @@
     <h2>Student Enrollment</h2>
     <input id="enroll-regno" placeholder="registration no" />
     <input id="file-input" type="file" multiple />
-    <button id="btn-enroll-photos">Upload Photos</button>
-    <div id="enroll-result"></div>
+    <button id="btn-enroll">Enroll Student</button>
+
+    <h3>OR Capture from Stream</h3>
+    <div style="border: 1px dashed #ccc; padding: 10px; margin-top: 10px;">
+      <input id="capture-stream-name" placeholder="Stream Name (e.g. camera1)" value="camera1" />
+      <button id="btn-capture">Capture Photo</button>
+      <div style="margin-top:5px">
+        <img id="captured-preview" style="max-width: 200px; border: 1px solid #ddd; display:none;" />
+        <div id="capture-status" style="font-size:0.8em; color:green;"></div>
+      </div>
+    </div>
+    <div id="enroll-res"></div>
   </section>
 
   <section id="reports">
