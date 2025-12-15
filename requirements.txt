@@ -9,4 +9,6 @@ opencv-python
 numpy
 httpx
 aiofiles
+jinja2 
+pdfkit
 
