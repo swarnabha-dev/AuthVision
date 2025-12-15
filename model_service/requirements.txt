@@ -26,3 +26,4 @@ passlib[bcrypt]
 pytest
 pytest-asyncio
 httpx
+tf_keras
