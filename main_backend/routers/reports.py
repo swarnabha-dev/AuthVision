@@ -36,10 +36,13 @@ def install_wkhtmltopdf():
     installer_path = os.path.join(tempfile.gettempdir(), "wkhtmltox_installer.exe")
     try:
         urllib.request.urlretrieve(url, installer_path)
-        LOG.info("Downloaded installer to %s. Installing silently...", installer_path)
-        # Attempt silent install. /S is standard for this installer (NSIS-like)
-        subprocess.run([installer_path, "/S"], check=True)
-        LOG.info("wkhtmltopdf installation completed.")
+        LOG.info("Downloaded installer to %s. Installing silently (UAC prompt may appear)...", installer_path)
+        # Attempt silent install with Elevation (RunAs) via PowerShell
+        # This allows us to wait for completion (-Wait)
+        ps_cmd = f"Start-Process -FilePath '{installer_path}' -ArgumentList '/S' -Verb RunAs -Wait"
+        subprocess.run(["powershell", "-Command", ps_cmd], check=True)
+        
+        LOG.info("wkhtmltopdf installation process completed.")
     except Exception as e:
         LOG.error("Failed to install wkhtmltopdf: %s", e)
     finally:
