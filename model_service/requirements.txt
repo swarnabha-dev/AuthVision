@@ -9,7 +9,7 @@ aiofiles
 pydantic
 
 # Use the deepface package requirements (deepface/requirements.txt contains model deps)
--r ../deepface/requirements.txt
+
 fastapi
 deepface
 python-multipart
