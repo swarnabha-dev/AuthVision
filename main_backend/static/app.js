@@ -370,3 +370,61 @@ document.getElementById('btn-rep-student').addEventListener('click', async () =>
   const j = await r.json();
   document.getElementById('rep-student-result').textContent = JSON.stringify(j, null, 2);
 });
+
+async function downloadAuthenticated(url, filename) {
+  if (!ACCESS) { alert('login first'); return; }
+  const statusDiv = document.createElement('div');
+  statusDiv.style.position = 'fixed';
+  statusDiv.style.top = '10px';
+  statusDiv.style.right = '10px';
+  statusDiv.style.background = 'gold';
+  statusDiv.style.padding = '5px';
+  statusDiv.textContent = 'Downloading...';
+  document.body.appendChild(statusDiv);
+
+  try {
+    const r = await fetch(API_BASE + url, { headers: { 'Authorization': 'Bearer ' + ACCESS } });
+    if (!r.ok) {
+      alert('Download failed: ' + r.status + ' ' + await r.text());
+      return;
+    }
+    const blob = await r.blob();
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = u;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(u);
+  } catch (e) {
+    alert('Download error: ' + e);
+  } finally {
+    document.body.removeChild(statusDiv);
+  }
+}
+
+// Download handlers
+document.getElementById('btn-dl-sub-csv').addEventListener('click', () => {
+  const subId = document.getElementById('rep-sub-id').value;
+  if (!subId) { alert('enter subject code'); return; }
+  downloadAuthenticated(`/reports/subject/${subId}/download/csv`, `attendance_${subId}.csv`);
+});
+
+document.getElementById('btn-dl-sub-pdf').addEventListener('click', () => {
+  const subId = document.getElementById('rep-sub-id').value;
+  if (!subId) { alert('enter subject code'); return; }
+  downloadAuthenticated(`/reports/subject/${subId}/download/pdf`, `attendance_${subId}.pdf`);
+});
+
+document.getElementById('btn-dl-stu-csv').addEventListener('click', () => {
+  const reg = document.getElementById('rep-student-reg').value;
+  if (!reg) { alert('enter reg no'); return; }
+  downloadAuthenticated(`/reports/student/${reg}/download/csv`, `report_${reg}.csv`);
+});
+
+document.getElementById('btn-dl-stu-pdf').addEventListener('click', () => {
+  const reg = document.getElementById('rep-student-reg').value;
+  if (!reg) { alert('enter reg no'); return; }
+  downloadAuthenticated(`/reports/student/${reg}/download/pdf`, `report_${reg}.pdf`);
+});
