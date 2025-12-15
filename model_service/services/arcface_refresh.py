@@ -186,6 +186,9 @@ def add_face_arcface(image_bytes: bytes, identity: str, index: int = 0) -> dict:
 
 
         # ---- APPEND CLEANED RECORDS TO DB ----
+        if not cleaned:
+             return {"status": "error", "error": "No face detected in the image", "identity": identity, "added": 0}
+
         db = load_db()
         db.extend(cleaned)
         save_db(db)
