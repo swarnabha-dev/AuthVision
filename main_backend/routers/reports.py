@@ -81,6 +81,7 @@ def _fetch_subject_data(subject_code: str, db: Session):
             "name": s.name,
             "section": s.section,
             "present_count": present,
+            "total_classes": total_classes,
             "percentage": round(pct, 2)
         })
         

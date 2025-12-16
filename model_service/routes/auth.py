@@ -25,6 +25,8 @@ router = APIRouter()
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
+    access_exp: int
+    refresh_exp: int
 
 
 @router.post("/register")
@@ -42,9 +44,29 @@ def login(username: str = Form(...), password: str = Form(...), db: Session = De
     user = authenticate_user(db, username, password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # helper to create token and get exp
+    jti_acc = config.ACCESS_TOKEN_EXPIRES_SECONDS
+    jti_ref = config.REFRESH_TOKEN_EXPIRES_SECONDS
+    
     access = create_access_token(user)
     refresh = create_refresh_token(user)
-    return {"access_token": access, "refresh_token": refresh}
+
+    # Decode simply to get exp, or calculate it. 
+    # Since create_access_token logic is opaque here (uses seconds from config), we can decode to be sure.
+    # Or import decode_token.
+    try:
+        acc_payload = decode_token(access)
+        ref_payload = decode_token(refresh)
+    except:
+        raise HTTPException(500, "Token generation failed")
+
+    return {
+        "access_token": access,
+        "refresh_token": refresh,
+        "access_exp": acc_payload.get("exp"),
+        "refresh_exp": ref_payload.get("exp")
+    }
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -54,10 +76,26 @@ def refresh(refresh_token: str = Form(...), db: Session = Depends(get_db)):
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
     user_id = int(payload.get("sub"))
+    
     # Create tokens for the subject
-    access = create_access_token(type("U", (), {"id": user_id}))
-    refresh = create_refresh_token(type("U", (), {"id": user_id}))
-    return {"access_token": access, "refresh_token": refresh}
+    # Dummy user object for signature compatibility if create_*_token expects obj with .id
+    UserObj = type("U", (), {"id": user_id})
+    
+    access = create_access_token(UserObj)
+    refresh = create_refresh_token(UserObj)
+
+    try:
+        acc_payload = decode_token(access)
+        ref_payload = decode_token(refresh)
+    except:
+        raise HTTPException(500, "Token generation failed")
+    
+    return {
+        "access_token": access,
+        "refresh_token": refresh,
+        "access_exp": acc_payload.get("exp"),
+        "refresh_exp": ref_payload.get("exp")
+    }
 
 
 @router.post("/revoke")
