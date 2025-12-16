@@ -63,7 +63,7 @@ AUTH_DATABASE_URL = os.environ.get("AUTH_DATABASE_URL", f"sqlite:///{os.path.joi
 # JWT settings
 JWT_SECRET = os.environ.get("JWT_SECRET", "change-me-in-production")
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRES_SECONDS = int(os.environ.get("ACCESS_TOKEN_EXPIRES_SECONDS", 900))
+ACCESS_TOKEN_EXPIRES_SECONDS = int(os.environ.get("ACCESS_TOKEN_EXPIRES_SECONDS", 3600))
 REFRESH_TOKEN_EXPIRES_SECONDS = int(os.environ.get("REFRESH_TOKEN_EXPIRES_SECONDS", 60 * 60 * 24 * 7))
 
 # API key settings

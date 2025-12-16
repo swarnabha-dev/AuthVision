@@ -96,6 +96,7 @@
                 <th>Registration No</th>
                 <th>Name</th>
                 <th>Section</th>
+                <th>Total Classes</th>
                 <th>Present</th>
                 <th>Percentage</th>
             </tr>
@@ -106,6 +107,7 @@
                 <td>{{ s.reg_no }}</td>
                 <td>{{ s.name }}</td>
                 <td>{{ s.section }}</td>
+                <td>{{ s.total_classes }}</td>
                 <td>{{ s.present_count }}</td>
                 <td class="{% if s.percentage < 75 %}low-attend{% else %}good-attend{% endif %}">
                     {{ s.percentage }}%
