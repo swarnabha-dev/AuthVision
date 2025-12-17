@@ -1,147 +1,266 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Main Backend Test UI</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>5G Lab Face Recognition System</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
   <style>
-    #live-feed {
-      border: 1px solid #ccc;
-      height: 200px;
-      overflow-y: auto;
-      padding: 10px;
-      background: #f9f9f9;
-      margin-top: 10px;
+    :root {
+      --primary: #6366f1;
+      --secondary: #a855f7;
+      --dark: #0f172a;
+      --light: #f8fafc;
     }
 
-    .feed-item {
-      padding: 5px;
-      border-bottom: 1px solid #eee;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    .feed-item:last-child {
-      border-bottom: none;
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--dark);
+      color: var(--light);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: radial-gradient(circle at top right, #1e1b4b, #0f172a);
     }
 
-    .feed-time {
-      color: #666;
-      font-size: 0.8em;
-      margin-right: 10px;
+    .hero {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+      position: relative;
+      padding: 20px;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%236366f1' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      opacity: 0.5;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 10;
+      max-width: 800px;
+      animation: fadeIn 1s ease-out;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 8px 16px;
+      background: rgba(99, 102, 241, 0.1);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 50px;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: 4rem;
+      font-weight: 800;
+      margin-bottom: 20px;
+      background: linear-gradient(to right, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.1;
+    }
+
+    p.subtitle {
+      font-size: 1.5rem;
+      color: #94a3b8;
+      margin-bottom: 40px;
+      font-weight: 300;
+    }
+
+    .logos {
+      display: flex;
+      gap: 40px;
+      justify-content: center;
+      margin-bottom: 50px;
+      align-items: center;
+    }
+
+    .logos img {
+      height: 80px;
+      /* filter: grayscale(100%) brightness(200%); */
+      transition: all 0.3s;
+      opacity: 0.7;
+    }
+
+    .logos img:hover {
+      filter: grayscale(0%) brightness(100%);
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    .credits-box {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 30px;
+      border-radius: 20px;
+      display: inline-flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .author-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      text-align: left;
+    }
+
+    .author-avatar {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.2rem;
+      color: white;
+    }
+
+    .author-details div {
+      font-size: 0.9rem;
+      color: #cbd5e1;
+    }
+
+    .author-details strong {
+      display: block;
+      font-size: 1.1rem;
+      color: white;
+    }
+
+    .social-links {
+      display: flex;
+      gap: 15px;
+      margin-top: 5px;
+    }
+
+    .social-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .social-btn:hover {
+      background: white;
+      color: var(--dark);
+      transform: translateY(-2px);
+    }
+
+    .footer {
+      padding: 20px;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #475569;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-enter {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 10px 25px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #64748b;
+      text-decoration: none;
+      border-radius: 5px;
+      font-size: 0.8rem;
+      transition: all 0.3s;
+    }
+
+    .btn-enter:hover {
+      color: white;
+      border-color: white;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
   </style>
 </head>
 
-<div class="container">
-  <h1>Main Backend - Test UI</h1>
-  <a href="/static/conference.html" style="float:right; font-weight:bold;">Go to Conference Portal >></a>
+<body>
 
-  <section id="auth">
-    <h2>Login</h2>
-    <input id="username" placeholder="username" />
-    <input id="password" placeholder="password" type="password" />
-    <button id="btn-login">Login</button>
-    <div id="tokens"></div>
-  </section>
+  <div class="hero">
+    <div class="content">
+      <span class="badge">System v6.0</span>
 
-  <section id="register">
-    <h2>User creation (admin-only)</h2>
-    <input id="reg-regno" placeholder="registration no (2020...) or username" />
-    <div id="profile-fields">
-      <input id="reg-name" placeholder="full name" />
-      <select id="reg-dept"></select>
-    </div>
-    <div id="student-fields">
-      <input id="reg-sem" placeholder="semester" />
-      <input id="reg-section" placeholder="section (A)" />
-    </div>
-    <input id="reg-pass" placeholder="password" type="password" />
-    <label for="reg-role">Role:</label>
-    <select id="reg-role">
-      <option value="student">student</option>
-      <option value="faculty">faculty</option>
-      <option value="admin">admin</option>
-    </select>
-    <button id="btn-register">Create user (admin)</button>
-    <div id="reg-result"></div>
-  </section>
+      <div class="logos">
+        <img src="/static/images/smit.png" alt="SMIT" title="Sikkim Manipal Institute of Technology">
+        <img src="/static/images/5glab.png" alt="5G Lab" title="5G IOT Lab">
+      </div>
 
-  <section id="stream">
-    <h2>Stream</h2>
-    <input id="stream-name" placeholder="stream name" value="camera1" />
-    <input id="stream-url" placeholder="rtsp url (for start)" />
-    <button id="btn-start">Start</button>
-    <button id="btn-stop">Stop</button>
-    <button id="btn-connect">Connect (view only)</button>
-    <div><img id="video" alt="stream" /></div>
-  </section>
+      <h1>AuthVision</h1>
+      <p class="subtitle">Next-Generation Face Recognition & Attendance System</p>
 
-  <section id="subjects">
-    <h2>Subjects</h2>
-    <input id="sub-code" placeholder="code" />
-    <input id="sub-name" placeholder="name" />
-    <select id="sub-dept"></select>
-    <input id="sub-sem" placeholder="semester" />
-    <button id="btn-create-sub">Create</button>
-    <button id="btn-list-sub">List</button>
-    <pre id="sub-list"></pre>
-  </section>
+      <div class="credits-box">
+        <div class="author-info">
+          <div class="author-avatar">S</div>
+          <div class="author-details">
+            <strong>Swarnabha Halder</strong>
+            <div>Backend Developer & Data Scientist</div>
+            <div style="font-size:0.8em; color:#94a3b8; margin-top:2px;">Made at 5G LAB SMIT</div>
+          </div>
+        </div>
+        <div class="social-links">
+          <a href="https://github.com/swarnabha-dev" target="_blank" class="social-btn" title="GitHub"><i
+              class="fa-brands fa-github"></i></a>
+          <a href="https://swarnabha.tech/" class="social-btn" title="Portfolio"><i class="fa-solid fa-globe"></i></a>
+          <a href="mailto:swarnabha@swarnabha.tech" class="social-btn" title="Contact"><i
+              class="fa-solid fa-envelope"></i></a>
+        </div>
+      </div>
 
-  <section id="attendance">
-    <h2>Session & Attendance</h2>
-    <input id="att-subject" placeholder="subject CODE (e.g. CSE101)" />
-    <select id="att-dept"></select>
-    <input id="att-sem" placeholder="semester" />
-    <input id="att-section" placeholder="section (A)" />
-    <button id="btn-trigger">Start Session</button>
-    <button id="btn-stop-att">Stop Session</button>
-    <div id="att-result"></div>
-
-    <h3>Live Recognition Feed</h3>
-    <div id="live-feed">
-      <div style="color:#999; text-align:center">Waiting for recognitions...</div>
-    </div>
-  </section>
-
-  <section id="student-actions">
-    <h2>Student Enrollment</h2>
-    <input id="enroll-regno" placeholder="registration no" />
-    <input id="file-input" type="file" multiple />
-    <button id="btn-enroll">Enroll Student</button>
-
-    <h3>OR Capture from Stream</h3>
-    <div style="border: 1px dashed #ccc; padding: 10px; margin-top: 10px;">
-      <input id="capture-stream-name" placeholder="Stream Name (e.g. camera1)" value="camera1" />
-      <button id="btn-capture">Capture Photo</button>
-      <div style="margin-top:5px">
-        <img id="captured-preview" style="max-width: 200px; border: 1px solid #ddd; display:none;" />
-        <div id="capture-status" style="font-size:0.8em; color:green;"></div>
+      <div>
+        <a href="/static/dashboard.html" class="btn-enter">Enter Dashboard</a>
       </div>
     </div>
-    <div id="enroll-res"></div>
-  </section>
+  </div>
 
-  <section id="reports">
-    <h2>Reports</h2>
+  <div class="footer">
+    &copy; 2025 5G Lab SMIT. All rights reserved.
+  </div>
 
-    <h3>Subject Attendance</h3>
-    <input id="rep-sub-id" placeholder="Subject Code" />
-    <button id="btn-rep-sub">Get Summary</button>
-    <button id="btn-dl-sub-csv">Download CSV</button>
-    <button id="btn-dl-sub-pdf">Download PDF</button>
-    <pre id="rep-sub-result"></pre>
-
-    <h3>Student Attendance</h3>
-    <input id="rep-student-reg" placeholder="Student Reg No" />
-    <button id="btn-rep-student">Get Report</button>
-    <button id="btn-dl-stu-csv">Download CSV</button>
-    <button id="btn-dl-stu-pdf">Download PDF</button>
-    <pre id="rep-student-result"></pre>
-  </section>
-
-</div>
-<script src="/static/app.js?v=4"></script>
 </body>
 
 </html>

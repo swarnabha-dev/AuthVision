@@ -1,7 +1,172 @@
-body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;line-height:1.4;margin:0;padding:0}
-.container{max-width:900px;margin:20px auto;padding:20px}
-section{border:1px solid #ddd;padding:12px;margin-bottom:12px;border-radius:6px}
-input{padding:8px;margin:6px}
-button{padding:8px 12px;margin:6px}
-#video{max-width:100%;border:1px solid #ccc}
-pre{background:#f7f7f7;padding:8px;border-radius:4px;overflow:auto}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --bg-gradient-start: #f3f4f6;
+  --bg-gradient-end: #e5e7eb;
+  --card-bg: #ffffff;
+  --text-main: #1f2937;
+  --text-muted: #6b7280;
+  --border-color: #e5e7eb;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+  color: var(--text-main);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 40px auto;
+  padding: 0 20px;
+  flex: 1;
+}
+
+h1, h2, h3 {
+  color: #111827;
+  font-weight: 700;
+  margin-top: 0;
+}
+
+h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+h2 { font-size: 1.25rem; margin-bottom: 1rem; border-bottom: 2px solid var(--primary); display: inline-block; padding-bottom: 4px; }
+h3 { font-size: 1.1rem; color: var(--text-muted); margin-top: 1.5rem; }
+
+a { color: var(--primary); text-decoration: none; transition: color 0.2s; }
+a:hover { color: var(--primary-hover); text-decoration: underline; }
+
+/* Cards */
+section {
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  padding: 24px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(255,255,255,0.5);
+  backdrop-filter: blur(10px);
+}
+
+/* Forms */
+input, select {
+  width: 100%;
+  max-width: 300px;
+  padding: 10px;
+  margin: 5px 0 15px 0;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  display: block;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+button {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+
+button:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 40px;
+}
+
+.brand-logos img {
+  height: 60px;
+  margin-right: 15px;
+  vertical-align: middle;
+}
+
+/* Feed */
+#live-feed {
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  height: 250px;
+  padding: 15px;
+}
+.feed-item {
+  background: white;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  box-shadow: var(--shadow-sm);
+  border-left: 4px solid var(--primary);
+}
+
+/* Footer */
+.premium-footer {
+  background: #111827;
+  color: #f3f4f6;
+  padding: 40px 0;
+  margin-top: auto;
+}
+
+.footer-content {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-info h4 { margin: 0 0 10px 0; color: white; }
+.footer-info p { margin: 5px 0; font-size: 0.9rem; color: #9ca3af; }
+
+.footer-links {
+  display: flex;
+  gap: 20px;
+}
+
+.footer-links a {
+  color: #d1d5db;
+  font-size: 1.5rem;
+}
+
+.footer-links a:hover {
+  color: white;
+  transform: scale(1.1);
+}
+
+.lab-branding {
+  text-align: right;
+}
+
+.lab-branding img {
+  height: 40px;
+  margin-left: 10px;
+  background: white; /* Ensure transparency looks logos ok */
+  padding: 2px;
+  border-radius: 4px;
+}

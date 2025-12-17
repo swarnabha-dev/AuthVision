@@ -80,3 +80,12 @@ if static_dir.exists():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+from fastapi.responses import FileResponse
+@app.get("/")
+async def root():
+    # Serve the landing page (index.html) from static directory
+    landing_page = Path(__file__).parent / 'static' / 'index.html'
+    if landing_page.exists():
+        return FileResponse(str(landing_page))
+    return {"message": "Welcome to Main Backend (Landing page missing)"}
