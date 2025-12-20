@@ -1,5 +1,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Form, WebSocket, WebSocketDisconnect
+from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from ..services.db import get_db, engine, Base
 from ..services import models as m
@@ -99,3 +100,23 @@ async def websocket_endpoint(websocket: WebSocket):
         ws_manager.disconnect(websocket)
     except Exception:
         ws_manager.disconnect(websocket)
+
+
+@router.get('/recent')
+async def get_recent_attendance(db: Session = Depends(get_db), user=Depends(require_role('faculty', 'admin'))):
+    """Returns the latest 10 attendance records across all sessions."""
+    try:
+        records = db.query(m.AttendanceRecord).join(m.AttendanceSession).order_by(m.AttendanceRecord.id.desc()).limit(10).all()
+        out = []
+        for r in records:
+            out.append({
+                "student_name": r.student.name,
+                "student_reg": r.student_reg,
+                "subject_code": r.session.subject_code,
+                "timestamp": r.timestamp.strftime("%I:%M %p"),
+                "status": r.status.value
+            })
+        return out
+    except Exception as e:
+        LOG.exception("Error fetching recent attendance")
+        raise HTTPException(status_code=500, detail=str(e))

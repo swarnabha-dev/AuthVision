@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Form, HTTPException
+from typing import List
 from sqlalchemy.orm import Session
 from ..services.db import get_db
 from ..services import models as m
@@ -47,3 +48,10 @@ def create_faculty(username: str = Form(...), name: str = Form(...), department:
     LOG.info("faculty profile created %s", username)
 
     return {"username": f.username, "name": f.name, "department": f.department}
+
+
+@router.get("/list")
+async def list_faculty(db: Session = Depends(get_db), user=Depends(require_role('faculty', 'admin'))):
+    """Lists all faculty members."""
+    faculty = db.query(m.Faculty).all()
+    return [{"username": f.username, "name": f.name, "department": f.department} for f in faculty]

@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 from ..services.db import get_db
 from ..services import models as m
 from ..services.auth import require_role, get_current_user
+from ..services.stream import get_active_streams_count
 import logging
 import csv
 import io
@@ -16,6 +17,50 @@ import pdfkit
 LOG = logging.getLogger("main_backend.reports")
 
 router = APIRouter(prefix="/reports")
+
+@router.get("/stats")
+async def get_system_stats(db: Session = Depends(get_db)):
+    """Returns dashboard statistics."""
+    try:
+        student_count = db.query(m.Student).count()
+        faculty_count = db.query(m.Faculty).count()
+        subject_count = db.query(m.Subject).count()
+        active_classes = get_active_streams_count()
+        
+        # Calculate average attendance across all subjects (rough estimate)
+        # Avg of (present/total_sessions) for each subject
+        subjects = db.query(m.Subject).all()
+        total_pct = 0.0
+        count = 0
+        for sub in subjects:
+            total_sessions = db.query(m.AttendanceSession).filter(m.AttendanceSession.subject_code == sub.code).count()
+            if total_sessions > 0:
+                present_count = db.query(m.AttendanceRecord).join(m.AttendanceSession).filter(
+                    m.AttendanceSession.subject_code == sub.code,
+                    m.AttendanceRecord.status == m.AttendanceStatus.PRESENT
+                ).count()
+                total_enrolled = db.query(m.Student).filter(
+                    m.Student.department == sub.department,
+                    m.Student.semester == sub.semester
+                ).count()
+                
+                if total_enrolled > 0:
+                    sub_pct = (present_count / (total_sessions * total_enrolled)) * 100.0
+                    total_pct += sub_pct
+                    count += 1
+        
+        avg_attendance = round(total_pct / count, 1) if count > 0 else 0.0
+        
+        return {
+            "students": student_count,
+            "faculty": faculty_count,
+            "subjects": subject_count,
+            "active_classes": active_classes,
+            "avg_attendance": avg_attendance
+        }
+    except Exception as e:
+        LOG.exception("Error fetching stats")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Setup Jinja2
 TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
@@ -150,10 +195,10 @@ def download_subject_csv(subject_identifier: str, db: Session = Depends(get_db),
     # Generate CSV
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Registration No", "Name", "Section", "Present Sessions", "Percentage"])
+    writer.writerow(["Registration No", "Name", "Section", "Total Sessions", "Present Sessions", "Percentage"])
     
     for s in data['student_stats']:
-        writer.writerow([s['reg_no'], s['name'], s['section'], s['present_count'], f"{s['percentage']}%"])
+        writer.writerow([s['reg_no'], s['name'], s['section'], s['total_classes'], s['present_count'], f"{s['percentage']}%"])
         
     output.seek(0)
     return Response(

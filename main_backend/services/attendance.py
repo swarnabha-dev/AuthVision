@@ -208,6 +208,7 @@ class AttendanceManager:
                      }
                  
              LOG.info("loaded %d eligible participants", len(eligible_ids))
+             self.current_session['total_students'] = len(eligible_ids)
         except Exception as e:
             LOG.error("failed to load participants: %s", e)
             db.close()

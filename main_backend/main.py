@@ -76,6 +76,11 @@ app.include_router(streaming_router.router)
 static_dir = Path(__file__).parent / 'static'
 if static_dir.exists():
     app.mount('/static', StaticFiles(directory=str(static_dir)), name='static')
+    
+    # Dashboard route
+    dashboard_dir = static_dir / 'dashboard'
+    if dashboard_dir.exists():
+        app.mount('/dashboard', StaticFiles(directory=str(dashboard_dir), html=True), name='dashboard')
 
 @app.get("/health")
 def health():

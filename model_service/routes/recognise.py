@@ -74,34 +74,76 @@ async def recognise(request: Request, file: UploadFile = File(None), image_b64: 
             )
 
         except ValueError as ve:
-            # This usually indicates anti-spoofing detected a fake, or other validation errors.
-            # Return 422 Unprocessable Entity with the message so the client can handle it.
+            msg = str(ve).lower()
+
+            # ---- LOW CONFIDENCE FACE DETECTION ----
+            if "confidence too low" in msg or "low detection confidence" in msg:
+                return JSONResponse(
+                    status_code=422,
+                    content={
+                        "status": "error",
+                        "reason": "low_detection_confidence",
+                        "message": str(ve),
+                    },
+                )
+
+            # ---- ANTI-SPOOFING ----
+            if "spoof" in msg:
+                return JSONResponse(
+                    status_code=422,
+                    content={
+                        "status": "error",
+                        "reason": "spoof_detected",
+                        "message": str(ve),
+                    },
+                )
+
+            # ---- GENERIC VALIDATION ERROR ----
             return JSONResponse(
                 status_code=422,
-                content={"status": "error", "reason": "spoof_detected", "message": str(ve)},
+                content={
+                    "status": "error",
+                    "reason": "validation_error",
+                    "message": str(ve),
+                },
             )
 
-        except Exception as e:
-            # Generic catch: return 500 with diagnostic message (can be made less verbose in prod).
-            # CHANGED: we convert unexpected errors into HTTP responses rather than letting them bubble.
-            return JSONResponse(
-                status_code=500,
-                content={"status": "error", "reason": "internal_error", "message": str(e)},
-            )
 
-        # Normal successful response
+        # # Normal successful response
+        # clean = deepface_service._serialize_deepface_result(res)
+
+        # # DeepFace returns: [ [ {...}, {...}, ... ] ]
+        # if isinstance(clean, list) and len(clean) > 0 and isinstance(clean[0], list):
+        #     # keep ONLY the best match (first one)
+        #     for i in range(len(clean)):
+        #         if len(clean[i]) > 0:
+        #             clean[i] = [clean[i][0]]
+
+        # return JSONResponse(clean)
+
+
         clean = deepface_service._serialize_deepface_result(res)
 
-        # DeepFace returns: [ [ {...}, {...}, ... ] ]
+        # DeepFace batched output: List[List[dict]]
         if isinstance(clean, list) and len(clean) > 0 and isinstance(clean[0], list):
-            # keep ONLY the best match (first one)
+
+            # ---- NO MATCH FOUND (THIS IS YOUR CASE) ----
+            if all(len(face_matches) == 0 for face_matches in clean):
+                return JSONResponse(
+                    status_code=404,
+                    content={
+                        "status": "error",
+                        "reason": "no_match_found",
+                        "message": "Face detected but no identity matched the database threshold",
+                    },
+                )
+
+            # ---- KEEP ONLY BEST MATCH PER FACE ----
             for i in range(len(clean)):
                 if len(clean[i]) > 0:
                     clean[i] = [clean[i][0]]
 
         return JSONResponse(clean)
-
-
         
     finally:
         if temp_path:

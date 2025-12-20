@@ -66,6 +66,31 @@ def create_student(reg_no: str = Form(...), name: str = Form(...), department: s
     return {"reg_no": s.reg_no, "name": s.name, "department": s.department, "semester": s.semester}
 
 
+@router.get('/list', response_model=List[dict])
+def list_students(department: str | None = None, semester: int | None = None, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """List student profiles.
+    """
+    LOG.info("user %s listing students (dept=%s, sem=%s)", getattr(user, 'username', None), department, semester)
+    q = db.query(m.Student)
+    if department:
+        q = q.filter(m.Student.department == department)
+    if semester:
+        q = q.filter(m.Student.semester == semester)
+    
+    students = q.all()
+    out = []
+    for s in students:
+        out.append({
+            "reg_no": s.reg_no,
+            "name": s.name,
+            "department": s.department,
+            "semester": s.semester,
+            "section": s.section,
+            "roll_no": s.roll_no
+        })
+    return out
+
+
 @router.get("/{reg_no}")
 def get_student(reg_no: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     s = db.query(m.Student).filter(m.Student.reg_no == reg_no).first()
@@ -117,6 +142,53 @@ async def enroll_photos(reg_no: str, files: List[UploadFile] = File(...), db: Se
     finally:
         pass
 
+
+
+@router.post('/modify')
+def modify_student(target_reg: str = Form(...), name: str | None = Form(None), semester: str | None = Form(None), department: str | None = Form(None), section: str | None = Form(None), roll_no: str | None = Form(None), db: Session = Depends(get_db), user=Depends(require_role('admin'))):
+    # target_reg is the PK to find
+    s = db.query(m.Student).filter(m.Student.reg_no == target_reg).first()
+    if not s:
+        raise HTTPException(status_code=404, detail='student not found')
+    LOG.info("user %s modifying student %s", getattr(user, 'username', None), target_reg)
+    
+    if name:
+        s.name = name
+    if semester:
+        try:
+            s.semester = int(semester)
+        except Exception:
+            raise HTTPException(status_code=400, detail='invalid semester')
+    if department:
+        # validate dept
+        if department not in config.DEPARTMENTS:
+            raise HTTPException(status_code=400, detail=f'invalid department')
+        s.department = department
+    if section:
+        s.section = section
+    if roll_no is not None:
+        s.roll_no = roll_no
+    
+    db.commit()
+    return {"reg_no": s.reg_no}
+
+
+@router.post('/delete')
+def delete_student(target_reg: str = Form(...), db: Session = Depends(get_db), user=Depends(require_role('admin'))):
+    s = db.query(m.Student).filter(m.Student.reg_no == target_reg).first()
+    if not s:
+        raise HTTPException(status_code=404, detail='student not found')
+    LOG.info("user %s deleting student %s", getattr(user, 'username', None), target_reg)
+    
+    # Also delete associated user
+    u = db.query(auth_srv.User).filter(auth_srv.User.username == target_reg).first()
+    if u:
+        db.delete(u)
+        LOG.info("deleted user account for %s", target_reg)
+        
+    db.delete(s)
+    db.commit()
+    return {"deleted": target_reg}
 
 
 # NOTE: student self-registration is not allowed. Student profiles and user accounts

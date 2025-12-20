@@ -183,6 +183,13 @@ def get_capturer(name: str, url: str = None) -> Capturer:
     return c
 
 
+def get_active_streams_count() -> int:
+    return len([c for c in _CAPTURERS.values() if c._running])
+
+def get_all_capturers() -> Dict[str, Capturer]:
+    return _CAPTURERS
+
+
 def stop_capturer(name: str):
     c = _CAPTURERS.pop(name, None)
     if c:

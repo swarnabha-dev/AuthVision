@@ -309,6 +309,27 @@ def find(
         anti_spoofing=anti_spoofing,
     )
 
+    # --- FILTER LOW CONFIDENCE FACE DETECTIONS ---
+    min_det_conf = 0.75  # or config.MIN_DETECTION_CONFIDENCE
+
+    filtered_sources = []
+    for obj in source_objs:
+        facial_area = obj.get("facial_area", {})
+        det_conf = facial_area.get("confidence")
+
+        # If confidence exists and is below threshold → skip
+        if det_conf is not None and det_conf < min_det_conf:
+            logger.debug(
+                f"Skipping face due to low detection confidence: {det_conf:.2f}"
+            )
+            continue
+
+        filtered_sources.append(obj)
+
+    source_objs = filtered_sources
+    # -------------------------------------------
+
+
     if batched:
         return find_batched(
             representations,

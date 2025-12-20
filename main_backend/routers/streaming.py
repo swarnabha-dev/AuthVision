@@ -62,6 +62,15 @@ def stop_stream(name: str = Form(...), user=Depends(require_role('faculty','admi
     return {"stopped": True, "name": name}
 
 
+@router.get('/list')
+def list_streams(user=Depends(require_role('faculty', 'admin'))):
+    caps = stream_srv.get_all_capturers()
+    return [
+        {"name": c.name, "url": c.url, "running": c._running}
+        for c in caps.values()
+    ]
+
+
 @router.websocket('/ws/{name}')
 async def ws_stream(websocket: WebSocket, name: str, token: str | None = Query(None)):
     """Websocket stream endpoint. Clients must provide ?token=<access_token> in the URL.
