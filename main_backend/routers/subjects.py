@@ -7,7 +7,6 @@ import logging
 
 LOG = logging.getLogger("main_backend.subjects")
 
-Base.metadata.create_all(bind=engine)
 
 router = APIRouter(prefix="/subjects")
 

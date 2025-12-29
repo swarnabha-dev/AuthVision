@@ -28,7 +28,7 @@ class AttendanceManager:
                 cls._instance = cls()
             return cls._instance
 
-    def start_session(self, stream_name: str, subject_code: str, department_name: str, semester: int, section: str, user_username: str):
+    def start_session(self, stream_name: str, subject_code: str, department_name: str, semester: int, section: str, user_username: str, session_id: int = None):
         with self._lock:
             if self.current_session:
                 raise ValueError(f"Session already running")
@@ -39,26 +39,60 @@ class AttendanceManager:
             except Exception:
                 raise ValueError(f"Stream {stream_name} not found")
 
-            # Create Database Session Entry
+            # Create or resume Database Session Entry
             db = SessionLocal()
             try:
-                # verify subject exists
-                subject = db.query(m.Subject).filter(m.Subject.code == subject_code).first()
-                if not subject:
-                     raise ValueError(f"Subject {subject_code} not found")
+                if session_id:
+                    # resume an existing session by id
+                    sess = db.query(m.AttendanceSession).filter(m.AttendanceSession.id == session_id).first()
+                    if not sess:
+                        raise ValueError(f"Attendance session id {session_id} not found")
+                    # ensure session is not already closed
+                    if getattr(sess, 'end_time', None) is not None:
+                        raise ValueError(f"Attendance session id {session_id} has already been closed")
+                    # validate subject matches request
+                    if sess.subject_code and subject_code and str(sess.subject_code).strip() != str(subject_code).strip():
+                        raise ValueError(f"Provided subject '{subject_code}' does not match session subject '{sess.subject_code}'")
+                    # validate department/semester against subject metadata (avoid adding redundant fields)
+                    if sess.subject_code:
+                        subj = db.query(m.Subject).filter(m.Subject.code == sess.subject_code).first()
+                        if subj:
+                            # department must match
+                            if department_name and str(subj.department).strip() != str(department_name).strip():
+                                raise ValueError(f"Provided department '{department_name}' does not match session subject department '{subj.department}'")
+                            # semester must match
+                            if semester is not None and int(subj.semester) != int(semester):
+                                raise ValueError(f"Provided semester '{semester}' does not match session subject semester '{subj.semester}'")
+                    # verify that requested section contains students (section is not stored on session row)
+                    try:
+                        sample = db.query(m.Student).filter(m.Student.department == department_name, m.Student.semester == semester, m.Student.section == section).limit(1).first()
+                        if not sample:
+                            raise ValueError(f"No students found for Department={department_name} Semester={semester} Section={section}")
+                    except Exception:
+                        # if DB query fails for some reason, raise a clear error
+                        raise
+                    # use DB subject_code when available
+                    subject_code = sess.subject_code or subject_code
+                    session_id = sess.id
+                    LOG.info(f"Resuming AttendanceSession ID={session_id} for {subject_code}")
+                else:
+                    # verify subject exists
+                    subject = db.query(m.Subject).filter(m.Subject.code == subject_code).first()
+                    if not subject:
+                         raise ValueError(f"Subject {subject_code} not found")
 
-                new_session = m.AttendanceSession(
-                    subject_code=subject_code,
-                    date=datetime.utcnow().date(),
-                    start_time=datetime.utcnow(),
-                    session_type="Lecture",
-                    location="Classroom"
-                )
-                db.add(new_session)
-                db.commit()
-                db.refresh(new_session)
-                session_id = new_session.id
-                LOG.info(f"Created AttendanceSession ID={session_id} for {subject_code}")
+                    new_session = m.AttendanceSession(
+                        subject_code=subject_code,
+                        date=datetime.utcnow().date(),
+                        start_time=datetime.utcnow(),
+                        session_type="Lecture",
+                        location="Classroom"
+                    )
+                    db.add(new_session)
+                    db.commit()
+                    db.refresh(new_session)
+                    session_id = new_session.id
+                    LOG.info(f"Created AttendanceSession ID={session_id} for {subject_code}")
             except Exception as e:
                 db.rollback()
                 raise e
@@ -165,7 +199,7 @@ class AttendanceManager:
         asyncio.set_event_loop(loop)
 
         capturer = stream_srv.get_capturer(stream_name)
-        q = capturer.subscribe()
+        q = capturer.subscribe(loop=loop)
         
         last_process_time = 0
         interval = 2.0 
@@ -225,15 +259,18 @@ class AttendanceManager:
             while not self._stop_event.is_set():
                 if self._stop_event.is_set(): break
 
-                # Drain
-                if not q.empty():
-                     while not q.empty():
-                         if self._stop_event.is_set(): break
-                         try: frame = q.get_nowait()
-                         except Exception: break
-                else:
-                    try: frame = q.get(timeout=1.0)
-                    except Exception: continue 
+                # Consume items (asyncio queue) using loop
+                try:
+                    # drain: just get one item with timeout, if multiple are queued we might lag 
+                    # but stream.py drops old frames if full.
+                    # We just need the latest.
+                    # Since we can't easily drain an asyncio queue from a sync thread without async loop,
+                    # we just wait for one item.
+                    # queue.qsize() is not thread-safe reliably across loops, but we can try.
+                    
+                    frame = loop.run_until_complete(asyncio.wait_for(q.get(), timeout=1.0))
+                except (asyncio.TimeoutError, Exception):
+                    continue
 
                 if self._stop_event.is_set(): break
                 frame_count += 1
@@ -259,16 +296,26 @@ class AttendanceManager:
             LOG.info("attendance loop terminated")
 
     async def _process_frame_async(self, image_b64, eligible_ids, id_to_details, session_id):
-        from ..services.model_client import get_headers_sync
+        from ..services.model_client import get_headers_async
         
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
-                headers = get_headers_sync()
+                # LOG.debug("Getting headers for recognition request...")
+                headers = await get_headers_async()
+                # LOG.debug("Sending frame to recognition service...")
                 resp = await client.post(f"{config.MODEL_SERVICE_URL}/recognise", json={"image_b64": image_b64}, headers=headers)
-                if resp.status_code != 200: return
+                
+                if resp.status_code != 200:
+                    LOG.error("Recognition service returned status %s: %s", resp.status_code, resp.text)
+                    return
                 data = resp.json()
-            except (httpx.ReadTimeout, httpx.RequestError): return
-            except Exception: return
+                # LOG.info("Recognition success: %s", data)
+            except (httpx.ReadTimeout, httpx.RequestError) as e:
+                LOG.error("Recognition service request failed: %s", e)
+                return
+            except Exception as e:
+                LOG.exception("Unexpected error in recognition request: %s", e)
+                return
 
         # LOG.info("RAW: %s", data)
             

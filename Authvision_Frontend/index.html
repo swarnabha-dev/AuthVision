@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuthVision - Attendance System</title>
+    <!-- Tailwind CDN + fonts for quick styling in development -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+    <script>
+      tailwind = { config: { darkMode: 'class', theme: { extend: { colors: { primary: '#06B6D4', accent: '#00E5FF', 'background-light': '#F8FAFC', 'surface-white': '#FFFFFF', 'slate-muting': '#94A3B8' }, fontFamily: { sans: ['Inter', 'sans-serif'] }, boxShadow: { glow: '0 0 20px rgba(0, 229, 255, 0.25)', card: '0 10px 40px -10px rgba(0,0,0,0.05)' } } } } };
+    </script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries" defer></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

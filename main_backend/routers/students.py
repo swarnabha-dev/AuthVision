@@ -13,7 +13,6 @@ LOG = logging.getLogger("main_backend.students")
 from fastapi import Security
 from ..services import auth as auth_srv
 
-Base.metadata.create_all(bind=engine)
 
 router = APIRouter(prefix="/students")
 

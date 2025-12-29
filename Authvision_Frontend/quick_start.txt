@@ -1,0 +1,20 @@
+AUTHVISION - QUICK START
+========================
+
+PREREQUISITES:
+- Node.js 16+ installed
+- No admin rights needed
+
+SETUP:
+1. Copy entire "12.Authvision(FrontEnd)" folder to desktop
+2. Open command prompt in the folder
+3. Run: npm install
+4. Run: npm run dev
+5. Open: http://localhost:5173
+
+TROUBLESHOOTING:
+- If port busy: npm run dev -- --port 3000
+- If npm errors: delete node_modules folder and run npm install again
+- No internet? Use the offline backup method
+
+CONTACT: [Your Contact Info]

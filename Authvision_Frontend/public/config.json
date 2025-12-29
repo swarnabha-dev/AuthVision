@@ -1,0 +1,22 @@
+{
+  "api": {
+    "baseURL": "http://localhost:8002",
+    "timeout": 10000
+  },
+  "websocket": {
+    "url": "ws://localhost:8002/ws",
+    "reconnectInterval": 3000
+  },
+  "features": {
+    "useMocks": false,
+    "enableWebSocket": true,
+    "enableFileUpload": true,
+    "enableCameraCapture": true,
+    "enableEmailAlerts": true,
+    "enableStudentDashboard": true
+  },
+  "camera": {
+    "rtsp_url": "rtsp://admin:admin123@192.168.128.10:554/avstream/channel=1/stream=1.sdp",
+    "autoDetect": true
+  }
+}

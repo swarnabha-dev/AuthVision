@@ -24,6 +24,7 @@ def start_attendance_session(
     semester: str = Form(...), 
     section: str = Form('A'), 
     stream_name: str = Form(...), 
+    session_id: int = Form(None),
     db: Session = Depends(get_db), 
     user=Depends(require_role('faculty','admin'))
 ):
@@ -60,14 +61,14 @@ def start_attendance_session(
     username = getattr(user, 'username', 'system')
     
     try:
-        mgr.start_session(stream_name, subject_code, department, sem, section, username)
+        new_session_id = mgr.start_session(stream_name, subject_code, department, sem, section, username, session_id=session_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         LOG.exception("error starting session")
         raise HTTPException(status_code=500, detail=str(e))
 
-    return {"started": True, "subject_code": subject_code, "stream_name": stream_name}
+    return {"started": True, "subject_code": subject_code, "stream_name": stream_name, "session_id": new_session_id}
 
 
 @router.post('/stop')
@@ -113,8 +114,8 @@ async def get_recent_attendance(db: Session = Depends(get_db), user=Depends(requ
                 "student_name": r.student.name,
                 "student_reg": r.student_reg,
                 "subject_code": r.session.subject_code,
-                "timestamp": r.timestamp.strftime("%I:%M %p"),
-                "status": r.status.value
+                "timestamp": r.recorded_at.strftime("%I:%M %p"),
+                "status": r.status
             })
         return out
     except Exception as e:

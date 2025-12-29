@@ -1,0 +1,132 @@
+class WebSocketClient {
+  constructor() {
+    this.socket = null;
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 5;
+    this.listeners = new Map();
+    this.isConnected = false;
+  }
+
+  connect() {
+    const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8000/api/v1/backend/ws/events';
+    const token = localStorage.getItem('access_token');
+    
+    try {
+      this.socket = new WebSocket(`${WS_URL}?token=${token}`);
+      
+      this.socket.onopen = () => {
+        console.log('🔌 WebSocket connected for real-time recognition');
+        this.isConnected = true;
+        this.reconnectAttempts = 0;
+        this.emit('connected', true);
+      };
+
+      this.socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📨 WebSocket message:', data);
+          
+          // Route different message types
+          if (data.type === 'recognition_event') {
+            this.emit('recognition', data);
+          } else if (data.type === 'attendance_marked') {
+            this.emit('attendance', data);
+          } else if (data.type === 'system_status') {
+            this.emit('status', data);
+          }
+        } catch (error) {
+          console.error('❌ WebSocket message parsing error:', error);
+        }
+      };
+
+      this.socket.onclose = () => {
+        console.log('🔌 WebSocket disconnected');
+        this.isConnected = false;
+        this.emit('connected', false);
+        this.attemptReconnect();
+      };
+
+      this.socket.onerror = (error) => {
+        console.error('❌ WebSocket error:', error);
+        this.emit('error', error);
+      };
+    } catch (error) {
+      console.error('❌ WebSocket connection failed:', error);
+    }
+  }
+
+  // Subscribe to events
+  on(event, callback) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, []);
+    }
+    this.listeners.get(event).push(callback);
+  }
+
+  // Emit events to listeners
+  emit(event, data) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).forEach(callback => callback(data));
+    }
+  }
+
+  // Send data to backend
+  send(data) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(data));
+    } else {
+      console.warn('⚠️ WebSocket not connected, cannot send:', data);
+    }
+  }
+
+  // Start recognition on a stream
+  startRecognition(streamUrl, modality = 'face') {
+    this.send({
+      action: 'start_recognition',
+      stream_url: streamUrl,
+      modality: modality,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Stop recognition
+  stopRecognition(streamUrl) {
+    this.send({
+      action: 'stop_recognition',
+      stream_url: streamUrl,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  attemptReconnect() {
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      const delay = Math.min(3000 * this.reconnectAttempts, 30000);
+      
+      console.log(`🔄 Reconnecting in ${delay}ms... Attempt ${this.reconnectAttempts}`);
+      
+      setTimeout(() => {
+        this.connect();
+      }, delay);
+    } else {
+      console.error('❌ Max reconnection attempts reached');
+      this.emit('reconnection_failed', true);
+    }
+  }
+
+  disconnect() {
+    if (this.socket) {
+      this.socket.close(1000, 'Manual disconnect');
+      this.socket = null;
+    }
+    this.isConnected = false;
+    this.reconnectAttempts = 0;
+  }
+
+  getConnectionStatus() {
+    return this.isConnected;
+  }
+}
+
+// Singleton instance
+export const websocketClient = new WebSocketClient();

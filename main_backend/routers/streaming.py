@@ -8,9 +8,8 @@ from ..services.db import get_db
 from sqlalchemy.orm import Session
 import asyncio
 
-Base.metadata.create_all(bind=engine)
 
-router = APIRouter(prefix="/stream")
+router = APIRouter(prefix="/stream", tags=["stream"])
 
 @router.get('/{name}/snapshot')
 async def get_snapshot(name: str, token: str = Query(None)):

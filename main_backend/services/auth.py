@@ -22,6 +22,15 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+    jti = Column(String, primary_key=True, index=True, nullable=False)
+    username = Column(String, index=True, nullable=False)
+    issued_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(Integer, nullable=True)
+    revoked = Column(Boolean, default=False)
+
+
 def create_user(db: Session, username: str, password: str, role: str = "student") -> User:
     import logging
     LOG = logging.getLogger("main_backend.auth")
@@ -50,15 +59,18 @@ def _new_jti() -> str:
 def create_access_token(user, expires_delta: Optional[timedelta] = None) -> str:
     now = datetime.utcnow()
     exp = now + (expires_delta or timedelta(seconds=config.ACCESS_TOKEN_EXPIRES_SECONDS))
-    payload = {"sub": user.username, "role": user.role, "jti": _new_jti(), "iat": int(now.timestamp()), "exp": int(exp.timestamp())}
+    payload = {"sub": user.username, "role": user.role, "jti": _new_jti(), "type": "access", "iat": int(now.timestamp()), "exp": int(exp.timestamp())}
     return jwt.encode(payload, config.JWT_SECRET, algorithm=config.JWT_ALGORITHM)
 
 
-def create_refresh_token(user, expires_delta: Optional[timedelta] = None) -> str:
+def create_refresh_token(user, expires_delta: Optional[timedelta] = None):
+    """Create a refresh token and return (token, jti, exp_ts)."""
     now = datetime.utcnow()
     exp = now + (expires_delta or timedelta(seconds=config.REFRESH_TOKEN_EXPIRES_SECONDS))
-    payload = {"sub": user.username, "jti": _new_jti(), "iat": int(now.timestamp()), "exp": int(exp.timestamp())}
-    return jwt.encode(payload, config.JWT_SECRET, algorithm=config.JWT_ALGORITHM)
+    jti = _new_jti()
+    payload = {"sub": user.username, "jti": jti, "type": "refresh", "iat": int(now.timestamp()), "exp": int(exp.timestamp())}
+    token = jwt.encode(payload, config.JWT_SECRET, algorithm=config.JWT_ALGORITHM)
+    return token, jti, int(exp.timestamp())
 
 
 def decode_token(token: str) -> dict:
@@ -69,6 +81,52 @@ def decode_token(token: str) -> dict:
     if exp and int(exp) < int(datetime.utcnow().timestamp()):
         raise jwt.ExpiredSignatureError("token expired")
     return payload
+
+
+def store_refresh_jti(db: Session, jti: str, username: str, exp_ts: int):
+    # create or update refresh token record
+    try:
+        existing = db.query(RefreshToken).filter(RefreshToken.jti == jti).first()
+        if existing:
+            existing.revoked = False
+            existing.expires_at = exp_ts
+            db.commit()
+            return
+        rt = RefreshToken(jti=jti, username=username, expires_at=exp_ts, revoked=False)
+        db.add(rt)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+
+def is_refresh_token_valid(db: Session, jti: str) -> bool:
+    from datetime import datetime as _dt
+    rt = db.query(RefreshToken).filter(RefreshToken.jti == jti).first()
+    if not rt:
+        return False
+    if rt.revoked:
+        return False
+    if rt.expires_at and int(rt.expires_at) < int(_dt.utcnow().timestamp()):
+        return False
+    return True
+
+
+def revoke_refresh_jti(db: Session, jti: str):
+    try:
+        rt = db.query(RefreshToken).filter(RefreshToken.jti == jti).first()
+        if rt:
+            rt.revoked = True
+            db.commit()
+    except Exception:
+        db.rollback()
+
+
+def revoke_user_refresh_tokens(db: Session, username: str):
+    try:
+        db.query(RefreshToken).filter(RefreshToken.username == username).update({"revoked": True})
+        db.commit()
+    except Exception:
+        db.rollback()
 
 
 from fastapi import Depends, HTTPException

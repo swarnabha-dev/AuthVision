@@ -204,7 +204,11 @@ def download_subject_csv(subject_identifier: str, db: Session = Depends(get_db),
     return Response(
         content=output.getvalue(),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=attendance_{subject_identifier}.csv"}
+        headers={
+            "Content-Disposition": f"attachment; filename=attendance_{subject_identifier}.csv",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
     )
 
 @router.get("/subject/{subject_identifier}/download/pdf")
@@ -231,7 +235,11 @@ def download_subject_pdf(subject_identifier: str, db: Session = Depends(get_db),
     return Response(
         content=pdf,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=attendance_{subject_identifier}.pdf"}
+        headers={
+            "Content-Disposition": f"attachment; filename=attendance_{subject_identifier}.pdf",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
     )
 
 
@@ -260,7 +268,11 @@ def download_student_csv(reg_no: str, db: Session = Depends(get_db), user = Depe
     return Response(
         content=output.getvalue(),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=report_{reg_no}.csv"}
+        headers={
+            "Content-Disposition": f"attachment; filename=report_{reg_no}.csv",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
     )
 
 @router.get("/student/{reg_no}/download/pdf")
@@ -289,5 +301,9 @@ def download_student_pdf(reg_no: str, db: Session = Depends(get_db), user = Depe
     return Response(
         content=pdf,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename=report_{reg_no}.pdf"}
+        headers={
+            "Content-Disposition": f"attachment; filename=report_{reg_no}.pdf",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
     )

@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from . import config
 import logging
 
@@ -11,7 +12,31 @@ handler.setFormatter(fmt)
 LOG.addHandler(handler)
 LOG.addHandler(logging.StreamHandler())
 
-app = FastAPI(title="Main Backend - Attendance & Stream Gateway")
+app = FastAPI(
+    title="Main Backend - Attendance & Stream Gateway",
+    openapi_tags=[
+        {"name": "auth", "description": "Authentication endpoints (login, refresh, profile)"},
+        {"name": "students", "description": "Student management"},
+        {"name": "subjects", "description": "Subject management"},
+        {"name": "stream", "description": "Streaming and snapshot endpoints"},
+    ],
+)
+
+# CORS: allow frontend dev server and common local hosts
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Request logging middleware - logs method, path, status and duration
@@ -50,6 +75,7 @@ from .routers import departments as departments_router
 from .routers import faculty as faculty_router
 from .routers import reports as reports_router
 from .services.auth import get_current_user
+from .services.db import engine, Base
 
 from fastapi import Depends
 from fastapi.staticfiles import StaticFiles
@@ -71,6 +97,21 @@ app.include_router(conferences_router.router, tags=["conferences"], dependencies
 # Do NOT apply the HTTP request-based `get_current_user` dependency at router-level
 # because it uses HTTPBearer (expects a Request) and will fail for WebSocket scopes.
 app.include_router(streaming_router.router)
+
+# Ensure DB tables are created at startup (move create_all out of routers to avoid import side-effects)
+try:
+    Base.metadata.create_all(bind=engine)
+    LOG.info("Database tables ensured (create_all executed)")
+except Exception:
+    LOG.exception("failed to create DB tables at startup")
+
+
+# Ensure OpenAPI is regenerated (clear cached schema)
+try:
+    app.openapi_schema = None
+    LOG.info("Cleared cached OpenAPI schema to force regeneration")
+except Exception:
+    pass
 
 # mount static frontend if present
 static_dir = Path(__file__).parent / 'static'

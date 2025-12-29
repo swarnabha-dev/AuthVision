@@ -1,0 +1,285 @@
+import { useAuthStore } from '../store/authStore';
+
+class ApiClient {
+  constructor() {
+    this.baseURL = '';
+    this.accessToken = null;
+  }
+
+  async init(config) {
+    this.baseURL = config.api.baseURL;
+  }
+
+  async request(endpoint, options = {}) {
+    const url = `${this.baseURL}${endpoint}`;
+    
+    // Prepare headers
+    const headers = {
+      ...options.headers,
+    };
+
+    // Add Authorization header if token exists (except for login)
+    if (this.accessToken && !endpoint.includes('/auth/login')) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+
+    // Only add Content-Type for non-form-data requests
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    try {
+      const config = {
+        headers,
+        ...options,
+      };
+
+      // Stringify body if it's not FormData
+      if (options.body && !(options.body instanceof FormData)) {
+        config.body = JSON.stringify(options.body);
+      }
+
+      const response = await fetch(url, config);
+
+      // Handle token expiration
+      if (response.status === 401) {
+        const refreshed = await useAuthStore.getState().refreshTokens();
+        if (refreshed) {
+          // Update token and retry
+          this.accessToken = useAuthStore.getState().accessToken;
+          headers['Authorization'] = `Bearer ${this.accessToken}`;
+          
+          // Retry the request
+          const retryConfig = { ...config, headers };
+          if (options.body && !(options.body instanceof FormData)) {
+            retryConfig.body = JSON.stringify(options.body);
+          }
+          
+          const retryResponse = await fetch(url, retryConfig);
+          if (!retryResponse.ok) {
+            throw new Error(`HTTP error! status: ${retryResponse.status}`);
+          }
+          return await retryResponse.json();
+        } else {
+          // Refresh failed, logout user
+          useAuthStore.getState().logout();
+          throw new Error('Authentication failed');
+        }
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
+    }
+  }
+
+  // ==================== AUTHENTICATION ====================
+  async apiGet(endpoint) {
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  async apiPost(endpoint, data) {
+    return this.request(endpoint, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async apiPut(endpoint, data) {
+    return this.request(endpoint, {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async apiDelete(endpoint) {
+    return this.request(endpoint, { method: 'DELETE' });
+  }
+
+  async apiPostForm(endpoint, formData) {
+    return this.request(endpoint, {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  // 🆕 ==================== SEMESTER-BASED ATTENDANCE ====================
+  async getStudentsBySemester(semester) {
+    return this.apiGet(`/students/semester/${semester}`);
+  }
+
+  async validateStudentSemester(studentId, semester) {
+    return this.apiGet(`/students/${studentId}/validate-semester?semester=${semester}`);
+  }
+
+  async markSubjectAttendance(attendanceData) {
+    return this.apiPost('/attendance/mark-subject', attendanceData);
+  }
+
+  async getSubjectAttendance(subjectId, date = null) {
+    const query = date ? `?date=${date}` : '';
+    return this.apiGet(`/attendance/subject/${subjectId}${query}`);
+  }
+
+  // 🆕 ==================== ATTENDANCE SESSIONS ====================
+  async createAttendanceSession(sessionData) {
+    return this.apiPost('/attendance/sessions', sessionData);
+  }
+
+  async endAttendanceSession(sessionToken) {
+    return this.apiPut(`/attendance/sessions/${sessionToken}/end`);
+  }
+
+  async getActiveSessions() {
+    return this.apiGet('/attendance/sessions/active');
+  }
+
+  // 🆕 ==================== SUBJECT MANAGEMENT ====================
+  async getSubjects() {
+    return this.apiGet('/subjects');
+  }
+
+  async createSubject(subjectData) {
+    return this.apiPost('/subjects', subjectData);
+  }
+
+  async updateSubject(subjectId, subjectData) {
+    return this.apiPut(`/subjects/${subjectId}`, subjectData);
+  }
+
+  async deleteSubject(subjectId) {
+    return this.apiDelete(`/subjects/${subjectId}`);
+  }
+
+  async getSubjectsBySemester(semester) {
+    return this.apiGet(`/subjects/semester/${semester}`);
+  }
+
+  // ==================== STUDENT MANAGEMENT ====================
+  async createStudent(studentData) {
+    return this.apiPost('/students', studentData);
+  }
+
+  async enrollStudent(studentId, formData) {
+    return this.apiPostForm(`/students/${studentId}/enroll`, formData);
+  }
+
+  async getStudent(studentId) {
+    return this.apiGet(`/students/${studentId}`);
+  }
+
+  async getAllStudents(filters = {}) {
+    const queryParams = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) queryParams.append(key, value);
+    });
+    const queryString = queryParams.toString();
+    return this.apiGet(`/students${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getStudentAttendance(studentId) {
+    return this.apiGet(`/students/${studentId}/attendance`);
+  }
+
+  async getLowAttendanceStudents(threshold = 75) {
+    return this.apiGet(`/students/low-attendance?threshold=${threshold}`);
+  }
+
+  // ==================== ATTENDANCE & REPORTS ====================
+  async getAttendanceStats(timeframe = 'month') {
+    return this.apiGet(`/attendance/stats?timeframe=${timeframe}`);
+  }
+
+  async exportAttendanceReport(format = 'csv', filters = {}) {
+    const queryParams = new URLSearchParams({ format });
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) queryParams.append(key, value);
+    });
+    return this.apiGet(`/reports/export?${queryParams.toString()}`);
+  }
+
+  // 🆕 ==================== FACE RECOGNITION ATTENDANCE ====================
+  async recognizeFaceForAttendance(imageData, sessionToken) {
+    return this.apiPost('/recognition/attend', {
+      image_data: imageData,
+      session_token: sessionToken
+    });
+  }
+
+  // ==================== SYSTEM & ADMIN ====================
+  async getSystemStatus() {
+    return this.apiGet('/system/status');
+  }
+
+  async getUsers() {
+    return this.apiGet('/users');
+  }
+
+  async createUser(userData) {
+    return this.apiPost('/users', userData);
+  }
+
+  async getDashboardStats() {
+    return this.apiGet('/dashboard/stats');
+  }
+
+  setAccessToken(token) {
+    this.accessToken = token;
+  }
+
+  // ==================== UTILITY METHODS ====================
+  async healthCheck() {
+    try {
+      await this.apiGet('/health');
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async uploadFile(file, onProgress = null) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      
+      if (onProgress) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = (event.loaded / event.total) * 100;
+            onProgress(percentComplete);
+          }
+        };
+      }
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch (e) {
+            resolve(xhr.responseText);
+          }
+        } else {
+          reject(new Error(`Upload failed: ${xhr.statusText}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      
+      xhr.open('POST', `${this.baseURL}/upload`);
+      if (this.accessToken) {
+        xhr.setRequestHeader('Authorization', `Bearer ${this.accessToken}`);
+      }
+      xhr.send(formData);
+    });
+  }
+}
+
+export const apiClient = new ApiClient();

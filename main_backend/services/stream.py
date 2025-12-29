@@ -15,6 +15,12 @@ LOG.setLevel(logging.DEBUG)
 # allows async subscribers to receive JPEG bytes. It also can send keyframes
 # to the model service for recognition.
 
+def _safe_put(q, item):
+    try:
+        q.put_nowait(item)
+    except asyncio.QueueFull:
+        pass
+
 
 class Capturer:
     def __init__(self, url: str, name: str = None, keyframe_interval: int = None):
@@ -40,29 +46,38 @@ class Capturer:
             LOG.info("Stopping capturer '%s'", self.name)
             self._thread.join(timeout=1.0)
 
-    def subscribe(self):
+    def subscribe(self, loop=None):
         # larger buffer for subscribers to tolerate bursts
+        if not loop:
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+            
         q = asyncio.Queue(maxsize=32)
         with self._lock:
-            self._subscribers.add(q)
+            self._subscribers.add((q, loop))
         return q
 
     def unsubscribe(self, q):
         with self._lock:
-            try:
-                self._subscribers.remove(q)
-            except KeyError:
-                pass
+            # find tuple with this q
+            to_remove = None
+            for s in self._subscribers:
+                if s[0] == q:
+                    to_remove = s
+                    break
+            if to_remove:
+                self._subscribers.remove(to_remove)
 
     def _broadcast(self, jpg_bytes: bytes):
-        # notify subscribers (async queues)
-        for q in list(self._subscribers):
-            try:
-                q.put_nowait(jpg_bytes)
-            except asyncio.QueueFull:
-                # drop frame silently (or debug log) to avoid spam/crashes
-                # self.unsubscribe(q) # Do not unsubscribe, just drop frame. Client might be slow.
-                pass
+        # notify subscribers (async queues) thread-safely
+        with self._lock:
+             subs = list(self._subscribers)
+        
+        for (q, loop) in subs:
+            if loop and not loop.is_closed():
+                loop.call_soon_threadsafe(_safe_put, q, jpg_bytes)
 
     def _run(self):
         # try opening with FFMPEG backend first (Windows builds may need CAP_FFMPEG)
