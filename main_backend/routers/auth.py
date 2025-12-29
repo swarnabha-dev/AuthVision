@@ -130,7 +130,11 @@ def refresh(refresh_token: str = Form(...), db: Session = Depends(get_db)):
 
 @router.post("/logout")
 def logout(refresh_token: str = Form(...), db: Session = Depends(get_db)):
-    """Logout user by revoking their refresh token."""
+    """Logout user by revoking their refresh token.
+    
+    Note: If token signature verification fails (e.g., JWT_SECRET mismatch),
+    the logout still succeeds as the token is invalid anyway.
+    """
     try:
         payload = auth_srv.decode_token(refresh_token)
         jti = payload.get('jti')
@@ -141,6 +145,15 @@ def logout(refresh_token: str = Form(...), db: Session = Depends(get_db)):
             auth_srv.revoke_refresh_jti(db, jti)
             LOG.info("logout: revoked refresh token jti=%s for username=%s", jti, username)
         
+        return {"message": "Logged out successfully"}
+    except jwt.InvalidSignatureError:
+        # Token was signed with different JWT_SECRET (common in multi-PC deployments)
+        # This is OK - token is already invalid, logout succeeds
+        LOG.info("logout: token signature verification failed (likely JWT_SECRET mismatch) - treating as already logged out")
+        return {"message": "Logged out successfully"}
+    except jwt.ExpiredSignatureError:
+        # Token already expired - logout succeeds
+        LOG.info("logout: token already expired - treating as already logged out")
         return {"message": "Logged out successfully"}
     except Exception as e:
         LOG.warning("logout failed: %s", e)
