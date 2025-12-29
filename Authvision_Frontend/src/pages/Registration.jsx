@@ -2,6 +2,93 @@
 import { apiClient } from '../services/apiClient'
 import { useAuthStore } from '../store/authStore'
 
+// Image capture field component - MUST be outside to prevent re-renders
+const ImageCaptureField = ({ 
+  position, 
+  label, 
+  description, 
+  captureMode, 
+  imageFiles, 
+  imagePreviewUrls,
+  currentCapture,
+  cameraStarted,
+  selectedStream,
+  handleFileChange,
+  captureImage,
+  captureFromRTSP
+}) => (
+  <div className="bg-white border border-gray-200 rounded-lg p-4" style={{ position: 'relative', zIndex: 10 }}>
+    <div className="flex items-center justify-between mb-3">
+      <label className="text-sm font-medium text-gray-700">
+        {label} {imageFiles[position] && <span className="text-green-600 ml-2">✓</span>}
+      </label>
+      <span className="text-xs text-gray-500">{description}</span>
+    </div>
+    
+    {captureMode === 'upload' ? (
+      <div>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => handleFileChange(position, e.target.files[0])}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+        />
+        {imageFiles[position] && (
+          <span className="text-xs text-green-600 mt-2 block">{imageFiles[position].name}</span>
+        )}
+      </div>
+    ) : (
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <button
+          type="button"
+          onMouseEnter={() => console.log('Mouse entered button:', position)}
+          onMouseDown={() => console.log('Mouse down on button:', position)}
+          onClick={(e) => {
+            console.log('=== BUTTON CLICK EVENT ===');
+            console.log('Position:', position);
+            console.log('Event target:', e.target);
+            console.log('Current target:', e.currentTarget);
+            e.preventDefault();
+            e.stopPropagation();
+            captureMode === 'rtsp' ? captureFromRTSP(position) : captureImage(position);
+          }}
+          className={`w-full px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center ${
+            currentCapture === position
+              ? 'bg-green-600 text-white'
+              : 'bg-cyan-600 text-white hover:bg-cyan-700'
+          }`}
+          disabled={captureMode === 'webcam' ? !cameraStarted : (captureMode === 'rtsp' ? !selectedStream : false)}
+          style={{ 
+            position: 'relative',
+            zIndex: 1000,
+            cursor: 'pointer',
+            touchAction: 'manipulation'
+          }}
+        >
+          <span className="material-icons-round text-sm mr-1" style={{ pointerEvents: 'none' }}>camera_alt</span>
+          <span style={{ pointerEvents: 'none' }}>{currentCapture === position ? 'Captured!' : `Capture ${label}`}</span>
+        </button>
+        {imageFiles[position] && (
+          <div className="mt-3" style={{ pointerEvents: 'none', position: 'relative', zIndex: 1 }}>
+            <div className="flex items-center mb-2">
+              <span className="material-icons-round text-sm text-green-600 mr-1">check_circle</span>
+              <span className="text-xs text-green-600">Image Captured</span>
+            </div>
+            <div className="w-full border-2 border-green-300 rounded-lg overflow-hidden bg-gray-50" style={{ pointerEvents: 'none' }}>
+              <img 
+                src={imagePreviewUrls[position]} 
+                alt={`${label} capture`}
+                className="w-full h-40 object-cover block"
+                style={{ pointerEvents: 'none', display: 'block' }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+)
+
 const Registration = () => {
   const { user, accessToken } = useAuthStore()
   
@@ -150,7 +237,18 @@ const Registration = () => {
 
   // Capture from webcam
   const captureImage = (position) => {
-    if (captureMode !== 'webcam' || !videoRef.current || !canvasRef.current) return
+    console.log('captureImage called for position:', position, 'mode:', captureMode)
+    
+    if (captureMode !== 'webcam') {
+      console.log('Not in webcam mode, skipping capture')
+      return
+    }
+    
+    if (!videoRef.current || !canvasRef.current) {
+      console.error('Video or canvas ref not available')
+      setEnrollmentStatus({ type: 'error', message: 'Camera not ready. Please start webcam first.' })
+      return
+    }
 
     const video = videoRef.current
     const canvas = canvasRef.current
@@ -158,10 +256,25 @@ const Registration = () => {
 
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
+    
+    if (canvas.width === 0 || canvas.height === 0) {
+      console.error('Video dimensions are zero')
+      setEnrollmentStatus({ type: 'error', message: 'Camera not ready. Please wait for video to load.' })
+      return
+    }
+    
+    console.log('Capturing from video:', canvas.width, 'x', canvas.height)
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
 
     canvas.toBlob((blob) => {
+      if (!blob) {
+        console.error('Failed to create blob from canvas')
+        setEnrollmentStatus({ type: 'error', message: 'Failed to capture image' })
+        return
+      }
+      
       const file = new File([blob], `${position}_webcam.jpg`, { type: 'image/jpeg' })
+      console.log('Captured file:', file.name, file.size, 'bytes')
       
       // Clean up old preview URL if exists
       if (imagePreviewUrls[position]) {
@@ -174,7 +287,11 @@ const Registration = () => {
       setImageFiles(prev => ({ ...prev, [position]: file }))
       setImagePreviewUrls(prev => ({ ...prev, [position]: previewUrl }))
       setCurrentCapture(position)
-      setTimeout(() => setCurrentCapture(null), 2000)
+      setEnrollmentStatus({ type: 'success', message: `${position} image captured!` })
+      setTimeout(() => {
+        setCurrentCapture(null)
+        setEnrollmentStatus(null)
+      }, 2000)
     }, 'image/jpeg', 0.8)
   }
 
@@ -186,9 +303,14 @@ const Registration = () => {
     }
 
     try {
-      // Use the snapshot API endpoint
+      setEnrollmentStatus({ type: 'info', message: `Capturing ${position} from stream...` })
+      
+      // Ensure apiClient is configured
+      await apiClient._ensureConfig()
       const baseURL = apiClient.baseURL || 'http://localhost:8002'
       const snapshotUrl = `${baseURL}/stream/${encodeURIComponent(selectedStream)}/snapshot_image`
+      
+      console.log('Capturing snapshot from:', snapshotUrl)
       
       const response = await fetch(snapshotUrl, {
         headers: {
@@ -196,12 +318,17 @@ const Registration = () => {
         }
       })
       
+      console.log('Snapshot response status:', response.status)
+      
       if (!response.ok) {
-        throw new Error(`Failed to capture snapshot: ${response.status}`)
+        const errorText = await response.text()
+        throw new Error(`Failed to capture snapshot (${response.status}): ${errorText}`)
       }
       
       const blob = await response.blob()
       const file = new File([blob], `${position}_rtsp.jpg`, { type: 'image/jpeg' })
+      
+      console.log('Captured file:', file.name, file.size, 'bytes')
       
       // Clean up old preview URL if exists
       if (imagePreviewUrls[position]) {
@@ -214,7 +341,11 @@ const Registration = () => {
       setImageFiles(prev => ({ ...prev, [position]: file }))
       setImagePreviewUrls(prev => ({ ...prev, [position]: previewUrl }))
       setCurrentCapture(position)
-      setTimeout(() => setCurrentCapture(null), 2000)
+      setEnrollmentStatus({ type: 'success', message: `${position} image captured successfully!` })
+      setTimeout(() => {
+        setCurrentCapture(null)
+        setEnrollmentStatus(null)
+      }, 2000)
     } catch (error) {
       console.error('RTSP capture failed:', error)
       setEnrollmentStatus({ type: 'error', message: `Failed to capture from RTSP stream: ${error.message}` })
@@ -460,63 +591,6 @@ const Registration = () => {
     }
   }
 
-  // Image capture field component
-  const ImageCaptureField = ({ position, label, description }) => (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-3">
-        <label className="text-sm font-medium text-gray-700">
-          {label} {imageFiles[position] && <span className="text-green-600 ml-2">✓</span>}
-        </label>
-        <span className="text-xs text-gray-500">{description}</span>
-      </div>
-      
-      {captureMode === 'upload' ? (
-        <div>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleFileChange(position, e.target.files[0])}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-          />
-          {imageFiles[position] && (
-            <span className="text-xs text-green-600 mt-2 block">{imageFiles[position].name}</span>
-          )}
-        </div>
-      ) : (
-        <div>
-          <button
-            type="button"
-            onClick={() => captureMode === 'rtsp' ? captureFromRTSP(position) : captureImage(position)}
-            className={`w-full px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center ${
-              currentCapture === position
-                ? 'bg-green-600 text-white'
-                : 'bg-cyan-600 text-white hover:bg-cyan-700'
-            }`}
-            disabled={captureMode === 'webcam' ? !cameraStarted : (captureMode === 'rtsp' ? !selectedStream : false)}
-          >
-            <span className="material-icons-round text-sm mr-1">camera_alt</span>
-            {currentCapture === position ? 'Captured!' : `Capture ${label}`}
-          </button>
-          {imageFiles[position] && (
-            <div className="mt-3">
-              <div className="flex items-center mb-2">
-                <span className="material-icons-round text-sm text-green-600 mr-1">check_circle</span>
-                <span className="text-xs text-green-600">Image Captured</span>
-              </div>
-              <div className="w-full border-2 border-green-300 rounded-lg overflow-hidden bg-gray-50">
-                <img 
-                  src={imagePreviewUrls[position]} 
-                  alt={`${label} capture`}
-                  className="w-full h-40 object-cover"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Page Header */}
@@ -755,6 +829,8 @@ const Registration = () => {
                 <div className={`rounded-lg p-3 ${
                   enrollmentStatus.type === 'success'
                     ? 'bg-green-50 border border-green-200 text-green-800'
+                    : enrollmentStatus.type === 'info'
+                    ? 'bg-blue-50 border border-blue-200 text-blue-800'
                     : 'bg-red-50 border border-red-200 text-red-800'
                 }`}>
                   <div className="flex items-center text-sm">
@@ -776,7 +852,7 @@ const Registration = () => {
           </div>
 
           {/* Capture Mode Card */}
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg p-6" style={{ position: 'relative', zIndex: 1 }}>
             <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
               <span className="material-icons-round text-cyan-600 mr-2">camera_alt</span>
               Image Capture Method
@@ -821,13 +897,14 @@ const Registration = () => {
             </div>
 
             {captureMode === 'webcam' && (
-              <div className="border border-gray-300 rounded-lg overflow-hidden">
+              <div className="border border-gray-300 rounded-lg overflow-hidden" style={{ height: '300px', position: 'relative', pointerEvents: 'none' }}>
                 <video 
                   ref={videoRef} 
                   autoPlay 
                   muted 
                   playsInline 
-                  className="w-full h-auto"
+                  className="w-full h-full block"
+                  style={{ objectFit: 'cover', pointerEvents: 'none' }}
                 />
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
               </div>
@@ -852,16 +929,21 @@ const Registration = () => {
                 </div>
                 
                 {selectedStream && (
-                  <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-900 relative">
+                  <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-900" style={{ height: '300px', position: 'relative', pointerEvents: 'none' }}>
                     {previewLoading && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-10">
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75" style={{ zIndex: 10 }}>
                         <div className="text-white text-sm">Loading stream...</div>
                       </div>
                     )}
                     {liveFrameUrl ? (
-                      <img src={liveFrameUrl} alt="Live RTSP Feed" className="w-full h-auto" />
+                      <img 
+                        src={liveFrameUrl} 
+                        alt="Live RTSP Feed" 
+                        className="w-full h-full block" 
+                        style={{ objectFit: 'cover', pointerEvents: 'none' }}
+                      />
                     ) : (
-                      <div className="flex items-center justify-center py-12 text-gray-400">
+                      <div className="flex items-center justify-center h-full text-gray-400">
                         <span className="material-icons-round mr-2">videocam_off</span>
                         Waiting for stream...
                       </div>
@@ -873,17 +955,82 @@ const Registration = () => {
           </div>
 
           {/* Image Capture Grid */}
-          <div className="bg-white shadow rounded-lg p-6">
+          <div className="bg-white shadow rounded-lg p-6" style={{ position: 'relative', zIndex: 2 }}>
             <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
               <span className="material-icons-round text-cyan-600 mr-2">photo_library</span>
               Capture Images
             </h3>
             <div className="space-y-3">
-              <ImageCaptureField position="front" label="Front View" description="Straight face" />
-              <ImageCaptureField position="left" label="Left Profile" description="Left side" />
-              <ImageCaptureField position="right" label="Right Profile" description="Right side" />
-              <ImageCaptureField position="angled_left" label="Angled Left" description="45° left" />
-              <ImageCaptureField position="angled_right" label="Angled Right" description="45° right" />
+              <ImageCaptureField 
+                position="front" 
+                label="Front View" 
+                description="Straight face"
+                captureMode={captureMode}
+                imageFiles={imageFiles}
+                imagePreviewUrls={imagePreviewUrls}
+                currentCapture={currentCapture}
+                cameraStarted={cameraStarted}
+                selectedStream={selectedStream}
+                handleFileChange={handleFileChange}
+                captureImage={captureImage}
+                captureFromRTSP={captureFromRTSP}
+              />
+              <ImageCaptureField 
+                position="left" 
+                label="Left Profile" 
+                description="Left side"
+                captureMode={captureMode}
+                imageFiles={imageFiles}
+                imagePreviewUrls={imagePreviewUrls}
+                currentCapture={currentCapture}
+                cameraStarted={cameraStarted}
+                selectedStream={selectedStream}
+                handleFileChange={handleFileChange}
+                captureImage={captureImage}
+                captureFromRTSP={captureFromRTSP}
+              />
+              <ImageCaptureField 
+                position="right" 
+                label="Right Profile" 
+                description="Right side"
+                captureMode={captureMode}
+                imageFiles={imageFiles}
+                imagePreviewUrls={imagePreviewUrls}
+                currentCapture={currentCapture}
+                cameraStarted={cameraStarted}
+                selectedStream={selectedStream}
+                handleFileChange={handleFileChange}
+                captureImage={captureImage}
+                captureFromRTSP={captureFromRTSP}
+              />
+              <ImageCaptureField 
+                position="angled_left" 
+                label="Angled Left" 
+                description="45° left"
+                captureMode={captureMode}
+                imageFiles={imageFiles}
+                imagePreviewUrls={imagePreviewUrls}
+                currentCapture={currentCapture}
+                cameraStarted={cameraStarted}
+                selectedStream={selectedStream}
+                handleFileChange={handleFileChange}
+                captureImage={captureImage}
+                captureFromRTSP={captureFromRTSP}
+              />
+              <ImageCaptureField 
+                position="angled_right" 
+                label="Angled Right" 
+                description="45° right"
+                captureMode={captureMode}
+                imageFiles={imageFiles}
+                imagePreviewUrls={imagePreviewUrls}
+                currentCapture={currentCapture}
+                cameraStarted={cameraStarted}
+                selectedStream={selectedStream}
+                handleFileChange={handleFileChange}
+                captureImage={captureImage}
+                captureFromRTSP={captureFromRTSP}
+              />
             </div>
             <button
               type="button"

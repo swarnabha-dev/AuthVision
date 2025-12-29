@@ -27,7 +27,7 @@ async def get_snapshot(name: str, token: str = Query(None)):
     pass
 
 @router.get('/{name}/snapshot_image')
-async def snapshot(name: str, user=Depends(require_role('admin', 'faculty'))):
+async def snapshot(name: str, user=Depends(require_role('admin', 'faculty', 'operator'))):
     try:
         c = stream_srv.get_capturer(name)
     except Exception:
