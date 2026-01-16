@@ -354,7 +354,13 @@ class AttendanceManager:
         
         if not recognized_map: return
 
-        LOG.info("Recognized: %s", recognized_map.keys())
+        # Log each recognized identity with its confidence (rounded to 2 decimals)
+        try:
+            entries = [f"{ident} (confidence: {conf:.2f})" for ident, conf in recognized_map.items()]
+            LOG.info("Recognized: %s", ", ".join(entries))
+        except Exception:
+            # Fallback to previous behaviour in case of unexpected types
+            LOG.info("Recognized: %s", recognized_map.keys())
 
         db = SessionLocal()
         try:

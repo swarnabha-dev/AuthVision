@@ -9,20 +9,15 @@
             padding: 20px;
             color: #333;
         }
-
-        h1,
-        h2,
-        h3 {
+        h1, h2, h3 {
             color: #0056b3;
             margin-bottom: 5px;
         }
-
         .header {
             margin-bottom: 30px;
             border-bottom: 2px solid #0056b3;
             padding-bottom: 10px;
         }
-
         .meta {
             display: flex;
             justify-content: space-between;
@@ -31,41 +26,33 @@
             padding: 15px;
             border-radius: 5px;
         }
-
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
         }
-
-        th,
-        td {
+        th, td {
             border: 1px solid #dee2e6;
             padding: 10px;
             text-align: left;
         }
-
         th {
             background-color: #0056b3;
             color: white;
         }
-
         tr:nth-child(even) {
             background-color: #f2f2f2;
         }
-
         .footer {
             margin-top: 30px;
             font-size: 0.8em;
             text-align: center;
             color: #666;
         }
-
         .low-attend {
             color: red;
             font-weight: bold;
         }
-
         .good-attend {
             color: green;
             font-weight: bold;
@@ -76,17 +63,17 @@
 <body>
     <div class="header">
         <h1>Attendance Summary Report</h1>
-        <h3>{{ subject.name }} ({{ subject.code }})</h3>
+        <h3>Data Structures (CSE100)</h3>
     </div>
 
     <div class="meta">
         <div>
-            <strong>Department:</strong> {{ subject.department }}<br>
-            <strong>Semester:</strong> {{ subject.semester }}
+            <strong>Department:</strong> CSE<br>
+            <strong>Semester:</strong> 7
         </div>
         <div style="text-align: right;">
-            <strong>Total Sessions:</strong> {{ total_classes }}<br>
-            <strong>Date Generated:</strong> {{ generated_at }}
+            <strong>Total Sessions:</strong> 25<br>
+            <strong>Date Generated:</strong> 2025-12-30
         </div>
     </div>
 
@@ -102,18 +89,60 @@
             </tr>
         </thead>
         <tbody>
-            {% for s in students %}
-            <tr>
-                <td>{{ s.reg_no }}</td>
-                <td>{{ s.name }}</td>
-                <td>{{ s.section }}</td>
-                <td>{{ s.total_classes }}</td>
-                <td>{{ s.present_count }}</td>
-                <td class="{% if s.percentage < 75 %}low-attend{% else %}good-attend{% endif %}">
-                    {{ s.percentage }}%
-                </td>
-            </tr>
-            {% endfor %}
+            <tr><td>202200001</td><td>Aarav Sharma</td><td>A</td><td>25</td><td>23</td><td class="good-attend">92%</td></tr>
+            <tr><td>202200002</td><td>Diya Patel</td><td>A</td><td>25</td><td>20</td><td class="good-attend">80%</td></tr>
+            <tr><td>202200003</td><td>Ishaan Gupta</td><td>A</td><td>25</td><td>19</td><td class="good-attend">76%</td></tr>
+            <tr><td>202200004</td><td>Sneha Reddy</td><td>A</td><td>25</td><td>18</td><td class="good-attend">72%</td></tr>
+            <tr><td>202200005</td><td>Rahul Verma</td><td>A</td><td>25</td><td>17</td><td class="low-attend">68%</td></tr>
+            <tr><td>202200006</td><td>Priya Singh</td><td>A</td><td>25</td><td>21</td><td class="good-attend">84%</td></tr>
+            <tr><td>202200007</td><td>Rohan Das</td><td>A</td><td>25</td><td>14</td><td class="low-attend">56%</td></tr>
+            <tr><td>202200008</td><td>Meera Nair</td><td>A</td><td>25</td><td>16</td><td class="low-attend">64%</td></tr>
+            <tr><td>202200009</td><td>Aditya Rao</td><td>A</td><td>25</td><td>22</td><td class="good-attend">88%</td></tr>
+            <tr><td>202200010</td><td>Nikita Jain</td><td>A</td><td>25</td><td>12</td><td class="low-attend">48%</td></tr>
+
+            <tr><td>202200011</td><td>Krishna Yadav</td><td>A</td><td>25</td><td>24</td><td class="good-attend">96%</td></tr>
+            <tr><td>202200012</td><td>Ananya Roy</td><td>A</td><td>25</td><td>19</td><td class="good-attend">76%</td></tr>
+            <tr><td>202200013</td><td>Mohit Kumar</td><td>A</td><td>25</td><td>20</td><td class="good-attend">80%</td></tr>
+            <tr><td>202200014</td><td>Sara Ali</td><td>A</td><td>25</td><td>15</td><td class="low-attend">60%</td></tr>
+            <tr><td>202200015</td><td>Harsh Vardhan</td><td>A</td><td>25</td><td>17</td><td class="low-attend">68%</td></tr>
+            <tr><td>202200016</td><td>Isha Taneja</td><td>A</td><td>25</td><td>21</td><td class="good-attend">84%</td></tr>
+            <tr><td>202200017</td><td>Aarav Sharma</td><td>A</td><td>25</td><td>23</td><td class="good-attend">92%</td></tr>
+            <tr><td>202200018</td><td>Kiran R</td><td>A</td><td>25</td><td>18</td><td class="good-attend">72%</td></tr>
+            <tr><td>202200019</td><td>Deepika Mehta</td><td>A</td><td>25</td><td>22</td><td class="good-attend">88%</td></tr>
+            <tr><td>202200020</td><td>Faiz Khan</td><td>A</td><td>25</td><td>11</td><td class="low-attend">44%</td></tr>
+
+            <tr><td>202200021</td><td>Aditi Sharma</td><td>A</td><td>25</td><td>13</td><td class="low-attend">52%</td></tr>
+            <tr><td>202200022</td><td>Ravi Gupta</td><td>A</td><td>25</td><td>21</td><td class="good-attend">84%</td></tr>
+            <tr><td>202200023</td><td>Simran Kaur</td><td>A</td><td>25</td><td>19</td><td class="good-attend">76%</td></tr>
+            <tr><td>202200024</td><td>Shivam Yadav</td><td>A</td><td>25</td><td>14</td><td class="low-attend">56%</td></tr>
+            <tr><td>202200025</td><td>Monika Pawar</td><td>A</td><td>25</td><td>20</td><td class="good-attend">80%</td></tr>
+            <tr><td>202200026</td><td>Aakash Sharma</td><td>A</td><td>25</td><td>12</td><td class="low-attend">48%</td></tr>
+            <tr><td>202200027</td><td>Tejas Rao</td><td>A</td><td>25</td><td>18</td><td class="good-attend">72%</td></tr>
+            <tr><td>202200028</td><td>Pooja S</td><td>A</td><td>25</td><td>22</td><td class="good-attend">88%</td></tr>
+            <tr><td>202200029</td><td>Yash Patel</td><td>A</td><td>25</td><td>17</td><td class="low-attend">68%</td></tr>
+            <tr><td>202200030</td><td>Abdul Rehman</td><td>A</td><td>25</td><td>15</td><td class="low-attend">60%</td></tr>
+
+            <tr><td>202200031</td><td>Sai Charan</td><td>A</td><td>25</td><td>21</td><td class="good-attend">84%</td></tr>
+            <tr><td>202200032</td><td>Shruti Sharma</td><td>A</td><td>25</td><td>23</td><td class="good-attend">92%</td></tr>
+            <tr><td>202200033</td><td>Manish Gupta</td><td>A</td><td>25</td><td>10</td><td class="low-attend">40%</td></tr>
+            <tr><td>202200034</td><td>Anjali Singh</td><td>A</td><td>25</td><td>19</td><td class="good-attend">76%</td></tr>
+            <tr><td>202200035</td><td>Akshay Jain</td><td>A</td><td>25</td><td>13</td><td class="low-attend">52%</td></tr>
+            <tr><td>202200036</td><td>Ritika Das</td><td>A</td><td>25</td><td>16</td><td class="low-attend">64%</td></tr>
+            <tr><td>202200037</td><td>Vishal Raj</td><td>A</td><td>25</td><td>20</td><td class="good-attend">80%</td></tr>
+            <tr><td>202200038</td><td>Neha Sharma</td><td>A</td><td>25</td><td>23</td><td class="good-attend">92%</td></tr>
+            <tr><td>202200039</td><td>Karthik N</td><td>A</td><td>25</td><td>12</td><td class="low-attend">48%</td></tr>
+            <tr><td>202200040</td><td>Naveen Kumar</td><td>A</td><td>25</td><td>15</td><td class="low-attend">60%</td></tr>
+
+            <tr><td>202200041</td><td>Hema Das</td><td>A</td><td>25</td><td>18</td><td class="good-attend">72%</td></tr>
+            <tr><td>202200042</td><td>Rajesh Patel</td><td>A</td><td>25</td><td>22</td><td class="good-attend">88%</td></tr>
+            <tr><td>202200043</td><td>Aisha Khan</td><td>A</td><td>25</td><td>11</td><td class="low-attend">44%</td></tr>
+            <tr><td>202200044</td><td>Imran Ali</td><td>A</td><td>25</td><td>21</td><td class="good-attend">84%</td></tr>
+            <tr><td>202200045</td><td>Tanvi S</td><td>A</td><td>25</td><td>13</td><td class="low-attend">52%</td></tr>
+            <tr><td>202200046</td><td>Sanjay R</td><td>A</td><td>25</td><td>17</td><td class="low-attend">68%</td></tr>
+            <tr><td>202200047</td><td>Vaishnavi Joshi</td><td>A</td><td>25</td><td>19</td><td class="good-attend">76%</td></tr>
+            <tr><td>202200048</td><td>Ayush Sharma</td><td>A</td><td>25</td><td>14</td><td class="low-attend">56%</td></tr>
+            <tr><td>202200049</td><td>Samarth Jain</td><td>A</td><td>25</td><td>16</td><td class="low-attend">64%</td></tr>
+            <tr><td>202200050</td><td>Keerthi M</td><td>A</td><td>25</td><td>12</td><td class="low-attend">48%</td></tr>
         </tbody>
     </table>
 
