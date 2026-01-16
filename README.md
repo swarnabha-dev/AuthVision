@@ -36,6 +36,14 @@ pip install -r model_service/requirements.txt
 pip install -r main_backend/requirements.txt
 ```
 
+## First-Time Setup (IMPORTANT)
+
+### Run deployment patch
+
+```bash
+python deploy_recognition_patch.py
+```
+
 3) Start `model_service` and `main_backend` in separate terminals.
 
 You can start `model_service` either as a package or as a script:
