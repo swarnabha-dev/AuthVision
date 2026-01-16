@@ -1,5 +1,3 @@
-A compact and up-to-date developer guide for this multi-service face-recognition project.
-
 This repository contains three main areas:
 - `deepface/` - the core face-recognition library and model code.
 - `model_service/` - a FastAPI service that wraps DeepFace model endpoints (recognise, refresh-db, detect) and exposes auth (JWT + API keys).
@@ -108,5 +106,3 @@ Recommended next improvements (optional)
 - Add stateful attendance sessions (start/stop with server-side state and cancellation).
 - Add integration tests that run a headless model_service and main_backend and exercise the UI endpoints.
 
-License
-Add the project license here (e.g., MIT).
